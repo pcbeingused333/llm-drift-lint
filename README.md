@@ -61,6 +61,15 @@ or put `# ldl: ignore[LDL001]` alone on the line above. A bare `# ldl: ignore` s
 - run: llm-drift-lint src/ --format github
 ```
 
+### As a pre-commit hook
+
+```yaml
+- repo: https://github.com/pcbeingused333/llm-drift-lint
+  rev: v0.1.0
+  hooks:
+    - id: llm-drift-lint
+```
+
 ## How model knowledge is kept
 
 What each model accepts lives in one table, `src/llm_drift_lint/models.py`, and every entry cites its source: provider documentation or the upstream PR that hit the problem. Rules never hard-code model names. When a provider changes behavior again, updating the linter means adding a row and a test.

@@ -1,0 +1,7 @@
+- id: llm-drift-lint
+  name: llm-drift-lint
+  description: Find LLM API calls that break when providers change model behavior.
+  entry: llm-drift-lint
+  language: python
+  types: [python]
+  exclude: ^(tests?|.*/tests?)/
