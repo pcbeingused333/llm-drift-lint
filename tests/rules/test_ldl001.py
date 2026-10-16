@@ -44,6 +44,48 @@ def test_non_default_literal_for_non_default_models(lint):
     assert [f.line for f in findings] == [2, 3]
 
 
+def test_top_p_default_is_0_99(lint):
+    # Thinking docs: "the top_p default is 0.99, so a top_p of 1 returns a 400 error".
+    findings = lint(Rule, 'client.messages.create(model="claude-sonnet-5-5", max_tokens=8, top_p=1)\n')
+    assert [f.line for f in findings] == [1]
+    assert "default 0.99" in findings[0].message
+
+
+def test_temperature_and_top_p_together_even_at_defaults(lint):
+    # Thinking docs: "...and so does a request that includes both temperature and top_p, even at
+    # their defaults."
+    findings = lint(
+        Rule,
+        """
+        client.messages.create(model="claude-sonnet-5-5", max_tokens=8, temperature=1.0, top_p=0.99)
+        client.messages.create(model="claude-haiku-5-5", max_tokens=8, temperature=t, extra_body={"top_p": p})
+        """,
+    )
+    assert [f.line for f in findings] == [2, 3]
+    assert all("both sent" in f.message for f in findings)
+
+
+def test_one_finding_per_call_when_a_value_is_also_non_default(lint):
+    findings = lint(
+        Rule, 'client.messages.create(model="claude-sonnet-5-5", max_tokens=8, temperature=0, top_p=0.99)\n'
+    )
+    assert [f.message.split("`")[1] for f in findings] == ["temperature=0"]
+
+
+def test_defaults_alone_or_with_an_unset_partner_are_silent(lint):
+    assert not lint(
+        Rule,
+        """
+        client.messages.create(model="claude-sonnet-5-5", max_tokens=8, top_p=0.99)
+        client.messages.create(model="claude-sonnet-5-5", max_tokens=8, temperature=1.0)
+        client.messages.create(model="claude-sonnet-5-5", max_tokens=8, temperature=1.0, top_p=None)
+        client.messages.create(model="claude-sonnet-5-5", max_tokens=8, temperature=t, top_p=NOT_GIVEN)
+        client.messages.create(model="claude-sonnet-4-6", max_tokens=8, temperature=0.5, top_p=0.9)
+        client.messages.create(model=model, max_tokens=8, temperature=1.0, top_p=0.99)
+        """,
+    )
+
+
 def test_extra_body_is_sent_too(lint):
     # The reward-bench#290 fix moved temperature into extra_body; the API still receives it.
     findings = lint(
