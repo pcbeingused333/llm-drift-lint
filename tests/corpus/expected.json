@@ -375,6 +375,43 @@
       "commit": "429dab1c9692cd0c870fe55df88f670d69764249",
       "license": "Apache-2.0",
       "findings": []
+    },
+    {
+      "id": "livekit-7726-issue",
+      "kind": "pre-fix",
+      "prs": [
+        "https://github.com/livekit/agents/issues/7726"
+      ],
+      "repo": "livekit/agents",
+      "commit": "4814a8f19ffd8ce7cfc7f615d3c105ce2e79aa3d",
+      "license": "Apache-2.0",
+      "notes": "An issue, not a PR: langchainrb#1073 cites it as the measurement behind LDL006. Sampling parameters already go in extra_body under anthropic>=1.8, so no LDL002 finding is allowed.",
+      "findings": [
+        {
+          "rule": "LDL006",
+          "path": "livekit-plugins/livekit-plugins-anthropic/livekit/plugins/anthropic/llm.py",
+          "line": 183,
+          "end_line": 183,
+          "status": "optional",
+          "why": "max_tokens defaults to 1024 through a request dict (line 183) and model is self._opts.model (default claude-sonnet-4-6, which doesn't think by default); the issue measured empty replies at 1024 on Sonnet 5 and Haiku 5.5."
+        },
+        {
+          "rule": "LDL006",
+          "path": "livekit-plugins/livekit-plugins-anthropic/livekit/plugins/anthropic/llm.py",
+          "line": 264,
+          "end_line": 271,
+          "status": "optional",
+          "why": "max_tokens defaults to 1024 through a request dict (line 183) and model is self._opts.model (default claude-sonnet-4-6, which doesn't think by default); the issue measured empty replies at 1024 on Sonnet 5 and Haiku 5.5."
+        },
+        {
+          "rule": "LDL006",
+          "path": "livekit-plugins/livekit-plugins-anthropic/livekit/plugins/anthropic/llm.py",
+          "line": 273,
+          "end_line": 279,
+          "status": "optional",
+          "why": "max_tokens defaults to 1024 through a request dict (line 183) and model is self._opts.model (default claude-sonnet-4-6, which doesn't think by default); the issue measured empty replies at 1024 on Sonnet 5 and Haiku 5.5."
+        }
+      ]
     }
   ]
 }
