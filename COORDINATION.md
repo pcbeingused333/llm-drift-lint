@@ -47,6 +47,13 @@ Each rule gets tests in `tests/rules/test_ldlNNN.py`: at least one positive case
 3. `tests/test_corpus.py`: runs every rule over the corpus and asserts the expected findings (it will fail until the RULES session lands rules: mark missing rule ids with `pytest.mark.xfail(strict=False)`).
 4. A false-positive check: a script `scripts/fp_scan.py` that runs the linter over the big repos already cloned in `~/.cache/claude-scratch/repos/` (langchain, llama_index, langgraph, crewAI, openai-agents-python…) and writes the findings to `~/.cache/claude-scratch/ldl-fp.txt`, for review.
 
+## Decisions (LEAD)
+
+- **LDL003 v2 (for RULES).** The corpus shows LDL003 misses all 9 real cases: in real code the model is never a literal (`self.model`, a parameter). Reading block 0's text is fragile on *every* current Claude model, so:
+  1. Fire when the model is unresolved or unknown, or known to think by default. Stay silent only when (a) the request visibly sets `thinking` to something other than enabled/adaptive, or (b) the model is known and `thinks_by_default` is False. An unresolvable `**splat` no longer silences the rule. Word the message as "can" for the unresolved case (e.g. "current Claude models think by default unless `thinking` is disabled").
+  2. A check on block 0 alone is **not** a guard: `hasattr(r.content[0], "text")`, `isinstance(r.content[0], TextBlock)`, `r.content[0].type == "text"` followed by reading block 0 still fails (Phoenix raises "unexpected content format"). Only code that looks beyond block 0 counts as guarded: iterating `r.content` (for / comprehension / `next(...)`), indexing it with anything other than `0`, or passing `r.content` on to a helper.
+  Evidence: with (1) alone, the 3 reward-bench cases are caught and the 11 cloned repos gain only 2 findings, both true positives (`langchain_anthropic/llms.py:288,325`, `AnthropicLLM._call/_acall` read `content[0].text` and never handle thinking). (2) is what the 6 Phoenix cases need. Target: `tests/test_corpus.py` all green.
+
 ## Status log (append, newest last; one line each, with session name)
 
 - LEAD: skeleton + contract committed on `main`. RULES and DATA: create your worktrees from `main`.
@@ -56,6 +63,7 @@ Each rule gets tests in `tests/rules/test_ldlNNN.py`: at least one positive case
 - RULES: LDL001 (5a68ab0) and LDL002 (f8456c9) done on `rules`. Findings are reported on the line where the call starts (`self.finding(site, ...)`), not on the keyword's line: DATA, use that line in `expected.json`. LDL002 relies on `ctx.min_version("anthropic")`, so corpus cases for it need the project's pyproject/lockfile next to the file.
 - LEAD: core resolves more of real-world code. `site.kwargs` now includes keys from `**params` when `params` is a dict display / `dict(...)` built earlier in the same function (plus `params["k"] = v`), and `kwarg_literal()`/`model()` resolve names via a local assignment before the call, then the enclosing function's parameter default, then module constants. `site.function` gives the enclosing function; `ctx.parent(node)` / `ctx.enclosing_function(node)` are available. No API removed.
 - LEAD: merged data (models table) and rules LDL001–LDL005 into main; 103 tests green. Zero findings (no false positives) on langchain/libs, llama_index llms, crewAI, openai-agents, dspy, magentic, agno. DATA: when you write docs/rules-evidence.md, please cover the sampling disagreement explicitly (langchainrb#1055 / WeKnora#4155 say Opus 4.7+ reject temperature with *any* value; the table says non_default) with the exact doc wording.
+- LEAD: merged the corpus (data): 12/21 pass; the 9 misses are all LDL003. See Decisions → LDL003 v2 (RULES).
 
 ## Requests (to the lead)
 
