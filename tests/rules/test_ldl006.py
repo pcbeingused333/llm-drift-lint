@@ -17,11 +17,12 @@ def test_langchainrb_default_of_256(lint):
     assert "max_tokens=256" in findings[0].message and "claude-sonnet-5-5" in findings[0].message
 
 
-def test_just_below_the_threshold(lint):
+def test_at_the_threshold(lint):
+    # livekit/agents#7726 measured empty replies at exactly 1024.
     findings = lint(
         Rule,
         """
-        client.messages.create(model="claude-haiku-5-5", max_tokens=1023, messages=m)
+        client.messages.create(model="claude-haiku-5-5", max_tokens=1024, messages=m)
         client.messages.stream(model="claude-opus-5-5", max_tokens=1, messages=m, extra_body={"metadata": {}})
         """,
     )
@@ -32,7 +33,7 @@ def test_enough_tokens_or_non_literal_are_silent(lint):
     assert not lint(
         Rule,
         """
-        client.messages.create(model="claude-sonnet-5-5", max_tokens=1024, messages=m)
+        client.messages.create(model="claude-sonnet-5-5", max_tokens=1025, messages=m)
         client.messages.create(model="claude-sonnet-5-5", max_tokens=16000, messages=m)
         client.messages.create(model="claude-sonnet-5-5", max_tokens=self.max_tokens, messages=m)
         client.messages.create(model="claude-sonnet-5-5", messages=m)
