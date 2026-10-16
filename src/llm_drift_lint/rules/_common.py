@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast
 
 from .. import models
-from ..core import CallSite
+from ..core import CallSite, FileContext
 
 # Request methods of the Anthropic SDK that send a generation request. ``messages.count_tokens``
 # is left out: it takes no sampling or max_tokens, and what it rejects isn't documented.
@@ -63,5 +63,19 @@ def may_be_unset(node: ast.expr) -> bool:
         if isinstance(sub, ast.Name) and sub.id in _UNSET_NAMES:
             return True
         if isinstance(sub, ast.Attribute) and sub.attr in _UNSET_NAMES:
+            return True
+    return False
+
+
+def imports(ctx: FileContext, package: str) -> bool:
+    """True when the file imports ``package`` or one of its submodules."""
+    for node in ast.walk(ctx.tree):
+        if isinstance(node, ast.Import):
+            names = [alias.name for alias in node.names]
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            names = [node.module]
+        else:
+            continue
+        if any(n == package or n.startswith(package + ".") for n in names):
             return True
     return False
