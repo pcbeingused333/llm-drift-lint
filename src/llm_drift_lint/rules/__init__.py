@@ -5,4 +5,5 @@ from . import (  # noqa: F401
     ldl002_sampling_kwargs_sdk1,
     ldl003_content_first_block_text,
     ldl004_forced_tool_choice,
+    ldl005_thinking_budget_tokens,
 )
