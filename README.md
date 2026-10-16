@@ -11,22 +11,26 @@ LLM providers change what their models accept faster than client code changes. E
 
 The linter reads your Python source, finds the SDK calls, resolves the model id when it's a literal or a constant, and checks the call against what that model accepts.
 
-> Status: v0.1 in progress. Rules target the Anthropic and OpenAI Python SDKs.
+> Status: v0.1. Rules target the Anthropic Python SDK (direct, Bedrock and Vertex model ids).
 
 ## Rules
 
 | Id | Name | Flags | Real-world fix that motivated it |
 |---|---|---|---|
-| LDL001 | `anthropic-sampling-params` | `temperature` / `top_p` / `top_k` sent to a model that rejects them | [langchainrb#1055](https://github.com/patterns-ai-core/langchainrb/pull/1055), [WeKnora#4155](https://github.com/Tencent/WeKnora/pull/4155), [trulens#2948](https://github.com/truera/trulens/pull/2948) |
+| LDL001 | `anthropic-sampling-params` | a non-default `temperature` / `top_p` / `top_k` (or `temperature` and `top_p` together) sent to a model that rejects them | [langchainrb#1055](https://github.com/patterns-ai-core/langchainrb/pull/1055), [WeKnora#4155](https://github.com/Tencent/WeKnora/pull/4155), [trulens#2948](https://github.com/truera/trulens/pull/2948) |
 | LDL002 | `anthropic-sampling-kwargs-sdk1` | sampling parameters passed as keyword arguments to `messages.create()` in a project on `anthropic>=1`, where they are no longer keyword arguments | [phoenix#17026](https://github.com/Arize-ai/phoenix/pull/17026) |
 | LDL003 | `content-first-block-text` | `response.content[0].text`, where block 0 can be a thinking block | [reward-bench#290](https://github.com/allenai/reward-bench/pull/290), [hostedgpt#823](https://github.com/AllYourBot/hostedgpt/pull/823) |
 | LDL004 | `forced-tool-choice` | `tool_choice={"type": "tool" \| "any"}` sent to a model that rejects a forced tool choice | [phoenix#17027](https://github.com/Arize-ai/phoenix/pull/17027), [ha-llmvision#747](https://github.com/valentinfrlch/ha-llmvision/pull/747) |
 | LDL005 | `thinking-budget-tokens` | `thinking={"type": "enabled", "budget_tokens": N}` sent to a model that takes effort levels instead | [chatlas#448](https://github.com/posit-dev/chatlas/pull/448) |
-| LDL006 | `low-max-tokens-thinking` | a small `max_tokens` sent to a model that thinks by default, so thinking can use the whole budget and the answer comes back empty | [langchainrb#1073](https://github.com/patterns-ai-core/langchainrb/pull/1073) |
+| LDL006 | `low-max-tokens-thinking` | `max_tokens` ≤ 1024 sent to a model that thinks by default, so thinking can use the whole budget and the answer comes back empty | [langchainrb#1073](https://github.com/patterns-ai-core/langchainrb/pull/1073), [livekit/agents#7726](https://github.com/livekit/agents/issues/7726) |
 
 `llm-drift-lint --list-rules` prints the rules in the installed version.
 
-**False positives are treated as bugs.** When a rule can't tell statically which model a call uses, it stays silent.
+**False positives are treated as bugs.** When a rule needs to know the model and can't tell statically which one a call uses, it stays silent. LDL003 is the exception: reading `content[0].text` is fragile on every current Claude model, so it only stays silent when the request visibly disables thinking or the model is known not to think by default.
+
+## Does it work?
+
+`tests/corpus/` holds the real files from the upstream fixes above, as they were just before and just after each fix, plus the findings a correct linter must report. The test suite checks all of them. On 16 large open-source code bases (langchain, llama_index, crewAI, dspy, agno, langgraph, semantic-kernel, autogen and others) v0.1 reports exactly two findings. Both are real bugs: `AnthropicLLM` in `langchain-anthropic` returns `response.content[0].text` and breaks on models that think by default.
 
 ## Install
 

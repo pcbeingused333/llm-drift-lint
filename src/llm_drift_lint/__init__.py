@@ -3,4 +3,4 @@
 from .core import CallSite, FileContext, Finding, Rule, all_rules, register
 
 __all__ = ["CallSite", "FileContext", "Finding", "Rule", "all_rules", "register"]
-__version__ = "0.1.0.dev0"
+__version__ = "0.1.0"
