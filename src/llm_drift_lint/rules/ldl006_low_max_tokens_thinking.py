@@ -8,17 +8,17 @@ from collections.abc import Iterator
 from ..core import FileContext, Finding, Rule, register
 from ._common import ANTHROPIC_REQUEST_CALLS, dict_field, has_splat, site_traits
 
-# Below this, a model that thinks by default often spends the whole budget thinking and returns no text
-# (langchainrb#1073 hit it at 256, livekit/agents#7726 measured it at 1024). 1024 is also the smallest
-# thinking budget the API ever accepted.
-MIN_MAX_TOKENS = 1024
+# At or below this, a model that thinks by default often spends the whole budget thinking and returns no
+# text: langchainrb#1073 hit it at 256, and livekit/agents#7726 measured it at exactly 1024 (no text in
+# 5/5 runs on Sonnet 5, 4/5 on Haiku 5.5).
+MAX_TOKENS_THRESHOLD = 1024
 
 
 @register
 class LowMaxTokensThinking(Rule):
     id = "LDL006"
     name = "low-max-tokens-thinking"
-    summary = f"max_tokens < {MIN_MAX_TOKENS} on a Claude model that thinks by default (no text in the reply)"
+    summary = f"max_tokens <= {MAX_TOKENS_THRESHOLD} on a Claude model that thinks by default (no text in the reply)"
     references = (
         "https://platform.claude.com/docs/en/build-with-claude/thinking-steering-and-cost",
         "https://github.com/patterns-ai-core/langchainrb/pull/1073",
@@ -31,7 +31,7 @@ class LowMaxTokensThinking(Rule):
             if (
                 isinstance(max_tokens, bool)
                 or not isinstance(max_tokens, int)
-                or max_tokens >= MIN_MAX_TOKENS
+                or max_tokens > MAX_TOKENS_THRESHOLD
             ):
                 continue
             if _may_set_thinking(site):
@@ -44,7 +44,7 @@ class LowMaxTokensThinking(Rule):
                 ctx,
                 f"max_tokens={max_tokens} is sent to {site.model()}, which thinks by default and counts "
                 "thinking against max_tokens, so the reply can stop before any text",
-                f"Raise max_tokens (at least {MIN_MAX_TOKENS}; Anthropic recommends 16000 for non-streaming "
+                f"Raise max_tokens (above {MAX_TOKENS_THRESHOLD}; Anthropic recommends 16000 for non-streaming "
                 "requests) or set `thinking` explicitly.",
             )
 
