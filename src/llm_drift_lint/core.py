@@ -8,6 +8,8 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .project import ProjectInfo, project_for
+
 
 @dataclass(frozen=True)
 class Finding:
@@ -98,6 +100,18 @@ class FileContext:
                     self._constants[node.target.id] = ast.literal_eval(node.value)
                 except (ValueError, SyntaxError, TypeError):
                     pass
+
+    @property
+    def project(self) -> ProjectInfo:
+        """Dependencies declared or locked by the project this file belongs to."""
+        if self.path == Path("<string>"):
+            return ProjectInfo(None)
+        return project_for(self.path)
+
+    def min_version(self, package: str) -> tuple[int, ...] | None:
+        """Lowest version of ``package`` the project runs with (locked version, else declared lower bound).
+        None when the project doesn't say."""
+        return self.project.min_version(package)
 
     def literal(self, node: ast.expr) -> object | None:
         try:

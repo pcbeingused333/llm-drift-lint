@@ -23,6 +23,7 @@ Rules:
 - `FileContext.parse(source, path)` → context or `None` on a syntax error. `ctx.calls(*suffixes)` yields `CallSite`s, in source order, whose dotted target (callee chain minus its root variable; `self.client.messages.create` → `client.messages.create`) ends with a suffix, e.g. `ANTHROPIC_MESSAGE_CALLS`, `OPENAI_CHAT_CALLS`, `OPENAI_RESPONSES_CALLS`.
 - `CallSite`: `.target`, `.kwargs` (name → AST node), `.kwarg_literal(name)` (literal value, or a module-level constant, else `None`), `.model()` (resolved `model=` string or `None`), `.line`, `.col`, `.node`.
 - A rule subclasses `Rule`, sets `id` (`LDL001`…), `name` (kebab-case), `summary`, `references` (URLs of docs and of the real PRs), implements `check(ctx) -> Iterator[Finding]`, and is decorated with `@register`. Build findings with `self.finding(site, ctx, message, hint)`.
+- Project dependencies: `ctx.min_version("anthropic")` returns the lowest version the file's project runs with (lockfile version if any, else the declared lower bound from pyproject / requirements), or `None` when unknown. LDL002 should only fire when this is `>= (1,)`. `ctx.project.declares(name)` tells whether it's declared at all.
 - Model knowledge lives **only** in `models.py`: rules call `models.traits(model_id)` and read `ModelTraits` fields. Never hard-code model names in a rule.
 - When the model can't be resolved statically (`site.model() is None`), a model-dependent rule stays silent by default. **False positives are worse than misses** for v0.1.
 
@@ -49,6 +50,8 @@ Each rule gets tests in `tests/rules/test_ldlNNN.py`: at least one positive case
 ## Status log (append, newest last; one line each, with session name)
 
 - LEAD: skeleton + contract committed on `main`. RULES and DATA: create your worktrees from `main`.
+
+- LEAD: `ctx.min_version(pkg)` / `ctx.project` added (src/llm_drift_lint/project.py); requires-python is now >=3.11 (tomllib). Merge `main` into your branch.
 
 ## Requests (to the lead)
 
