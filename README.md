@@ -30,7 +30,7 @@ The linter reads your Python source, finds the SDK calls, resolves the model id 
 
 ## Does it work?
 
-`tests/corpus/` holds the real files from the upstream fixes above, as they were just before and just after each fix, plus the findings a correct linter must report. The test suite checks all of them. On 16 large open-source code bases (langchain, llama_index, crewAI, dspy, agno, langgraph, semantic-kernel, autogen and others) v0.1 reports exactly two findings. Both are real bugs: `AnthropicLLM` in `langchain-anthropic` returns `response.content[0].text` and breaks on models that think by default.
+`tests/corpus/` holds the real files from the upstream fixes above, as they were just before and just after each fix, plus the findings a correct linter must report. The test suite checks all of them. On 16 large open-source code bases (langchain, llama_index, crewAI, dspy, agno, langgraph, semantic-kernel, autogen and others) v0.1 reports exactly two findings. Both are real bugs: `AnthropicLLM` in `langchain-anthropic` returns `response.content[0].text` and breaks on models that think by default (reported as [langchain-ai/langchain#41263](https://github.com/langchain-ai/langchain/issues/41263)).
 
 ## Install
 
