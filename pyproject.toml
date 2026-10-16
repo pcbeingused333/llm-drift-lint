@@ -7,7 +7,7 @@ name = "llm-drift-lint"
 version = "0.1.0.dev0"
 description = "Static checks for LLM API calls that break when providers change model behavior."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "MIT"
 authors = [{ name = "Alex Castillo González" }]
 dependencies = []
@@ -16,7 +16,7 @@ dependencies = []
 llm-drift-lint = "llm_drift_lint.cli:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = ["pytest>=8", "ruff==0.17.1"]
 
 [tool.ruff]
 line-length = 110
