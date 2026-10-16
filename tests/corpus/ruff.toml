@@ -1,0 +1,2 @@
+# Vendored third-party files (see README.md): never lint or reformat them.
+exclude = ["*"]
