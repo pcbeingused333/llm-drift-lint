@@ -63,32 +63,40 @@ def test_chained_access_and_dict_form(lint):
     assert [f.line for f in findings] == [2, 4]
 
 
-def test_unresolved_or_non_thinking_models_are_silent(lint):
-    assert not lint(
+def test_unresolved_unknown_or_hidden_thinking_still_fires(lint):
+    # LDL003 v2: block 0 is fragile on every current Claude model, so an unresolved model, an unknown
+    # model, a non-literal `thinking` or a **splat doesn't silence this rule.
+    findings = lint(
         Rule,
         """
         def judge(c, model):
             response = c.messages.create(model=model, messages=m, max_tokens=8)
             return response.content[0].text
 
-        response = client.messages.create(model="claude-sonnet-4-6", max_tokens=8, messages=m)
-        print(response.content[0].text)
-        """,
-    )
-
-
-def test_thinking_disabled_unknown_or_hidden_is_silent(lint):
-    assert not lint(
-        Rule,
-        """
-        r1 = client.messages.create(model="claude-sonnet-5-5", max_tokens=8, thinking={"type": "disabled"})
+        r1 = client.messages.create(model="claude-some-future-model", max_tokens=8)
         r1.content[0].text
         r2 = client.messages.create(model="claude-sonnet-5-5", max_tokens=8, thinking=thinking_config)
         r2.content[0].text
-        r3 = client.messages.create(model="claude-sonnet-5-5", max_tokens=8, **request_kwargs)
+        r3 = client.messages.create(model=self.model, max_tokens=8, **request_kwargs)
         r3.content[0].text
         r4 = client.messages.create(model="claude-sonnet-5-5", max_tokens=8, extra_body=body)
         r4.content[0].text
+        """,
+    )
+    assert [f.line for f in findings] == [4, 7, 9, 11, 13]
+    assert "can" in findings[0].message and "think by default" in findings[0].message
+
+
+def test_known_non_thinking_model_or_visibly_disabled_thinking_is_silent(lint):
+    assert not lint(
+        Rule,
+        """
+        response = client.messages.create(model="claude-sonnet-4-6", max_tokens=8, messages=m)
+        print(response.content[0].text)
+        r1 = client.messages.create(model=model, max_tokens=8, thinking={"type": "disabled"})
+        r1.content[0].text
+        r2 = client.messages.create(model="claude-sonnet-5-5", max_tokens=8, extra_body={"thinking": {"type": "disabled"}})
+        r2.content[0].text
         """,
     )
 
