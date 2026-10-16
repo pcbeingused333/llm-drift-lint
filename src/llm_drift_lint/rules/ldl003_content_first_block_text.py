@@ -139,21 +139,36 @@ def _is_const(node: ast.expr, value: object) -> bool:
     return isinstance(node, ast.Constant) and type(node.value) is type(value) and node.value == value
 
 
+# Builtins that take ``X.content`` without looking for its text block.
+_NON_INSPECTING = frozenset(
+    {"str", "repr", "print", "len", "bool", "type", "hasattr", "isinstance", "getattr", "cast"}
+)
+
+
 def _guarded_names(nodes: list[ast.AST]) -> set[str]:
-    """Names whose first block is inspected some other way (``.type``, isinstance...), i.e. checked."""
-    # The X.content[0] node inside each X.content[0].text access.
-    used_as_text = {id(n.value) for n in nodes if _first_block_text(n) is not None}
+    """Names whose content blocks are looked at beyond block 0: iterated, indexed with something other
+    than 0, or passed on to a function. Checking block 0 alone (``.type``, hasattr, isinstance) doesn't
+    count: reading block 0 afterwards still misses the text when a thinking block comes first."""
+    parents = {id(child): node for node in nodes for child in ast.iter_child_nodes(node)}
     guarded = set()
     for node in nodes:
-        # X.content[0] / X["content"][0] not immediately followed by .text / ["text"]
-        if not (isinstance(node, ast.Subscript) and _is_const(node.slice, 0)):
-            continue
-        container = node.value
-        is_content = (isinstance(container, ast.Attribute) and container.attr == "content") or (
-            isinstance(container, ast.Subscript) and _is_const(container.slice, "content")
+        is_content = (isinstance(node, ast.Attribute) and node.attr == "content") or (
+            isinstance(node, ast.Subscript) and _is_const(node.slice, "content")
         )
-        if is_content and isinstance(container.value, ast.Name) and id(node) not in used_as_text:
-            guarded.add(container.value.id)
+        if not (is_content and isinstance(node.value, ast.Name)):
+            continue
+        parent = parents.get(id(node))
+        if (
+            (isinstance(parent, ast.Subscript) and parent.value is node and not _is_const(parent.slice, 0))
+            or (isinstance(parent, (ast.For, ast.AsyncFor, ast.comprehension)) and parent.iter is node)
+            or (
+                isinstance(parent, ast.Call)
+                and parent.func is not node
+                and not (isinstance(parent.func, ast.Name) and parent.func.id in _NON_INSPECTING)
+            )
+            or (isinstance(parent, ast.keyword) and parent.value is node)
+        ):
+            guarded.add(node.value.id)
     return guarded
 
 

@@ -93,7 +93,33 @@ def test_thinking_disabled_unknown_or_hidden_is_silent(lint):
     )
 
 
-def test_fixed_and_guarded_reads_are_silent(lint):
+def test_checking_only_block_0_is_not_a_guard(lint):
+    # phoenix#17026/#17027 (generate_text): block 0 is checked, then read, so a leading thinking block
+    # still loses the answer ("unexpected content format").
+    findings = lint(
+        Rule,
+        """
+        def generate_text(self, messages):
+            response = self.client.messages.create(model="claude-opus-5-5", messages=messages, max_tokens=4096)
+            if hasattr(response.content[0], "text"):
+                return cast(str, response.content[0].text)
+            raise ValueError(f"Anthropic returned unexpected content format: {response.content}")
+
+        def by_type(client):
+            response = client.messages.create(model="claude-opus-5-5", max_tokens=8, messages=m)
+            if response.content[0].type == "text":
+                return response.content[0].text
+
+        def by_isinstance(client):
+            response = client.messages.create(model="claude-opus-5-5", max_tokens=8, messages=m)
+            if isinstance(response.content[0], TextBlock):
+                return response.content[0].text
+        """,
+    )
+    assert [f.line for f in findings] == [5, 11, 16]
+
+
+def test_looking_beyond_block_0_is_a_guard(lint):
     assert not lint(
         Rule,
         """
@@ -101,16 +127,22 @@ def test_fixed_and_guarded_reads_are_silent(lint):
             response = client.messages.create(model="claude-opus-5-5", max_tokens=8, messages=m)
             return next((b.text for b in response.content if b.type == "text"), "")
 
-        def guarded(client):
+        def loop(client):
             response = client.messages.create(model="claude-opus-5-5", max_tokens=8, messages=m)
-            if response.content[0].type == "text":
-                return response.content[0].text
-            return None
+            for block in response.content:
+                log(block)
+            return response.content[0].text
 
-        def guarded_isinstance(client):
+        def other_index(client):
             response = client.messages.create(model="claude-opus-5-5", max_tokens=8, messages=m)
-            if isinstance(response.content[0], TextBlock):
-                return response.content[0].text
+            if len(response.content) > 1:
+                return response.content[-1].text
+            return response.content[0].text
+
+        def helper(client):
+            response = client.messages.create(model="claude-opus-5-5", max_tokens=8, messages=m)
+            check_blocks(blocks=response.content)
+            return response.content[0].text
         """,
     )
 
