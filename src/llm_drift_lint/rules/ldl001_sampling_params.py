@@ -14,7 +14,7 @@ class AnthropicSamplingParams(Rule):
     name = "anthropic-sampling-params"
     summary = "temperature/top_p/top_k sent to a Claude model that rejects them (400)"
     references = (
-        "https://platform.claude.com/docs/en/docs/about-claude/model-deprecations",
+        "https://platform.claude.com/docs/en/about-claude/model-deprecations",
         "https://github.com/patterns-ai-core/langchainrb/pull/1055",
         "https://github.com/Tencent/WeKnora/pull/4155",
         "https://github.com/truera/trulens/pull/2948",

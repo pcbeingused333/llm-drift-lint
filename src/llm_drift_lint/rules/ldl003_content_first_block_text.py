@@ -21,7 +21,7 @@ class ContentFirstBlockText(Rule):
     name = "content-first-block-text"
     summary = "response.content[0].text on a Claude response whose first block can be a thinking block"
     references = (
-        "https://platform.claude.com/docs/en/docs/build-with-claude/extended-thinking",
+        "https://platform.claude.com/docs/en/build-with-claude/extended-thinking",
         "https://github.com/allenai/reward-bench/pull/290",
         "https://github.com/AllYourBot/hostedgpt/pull/823",
     )
