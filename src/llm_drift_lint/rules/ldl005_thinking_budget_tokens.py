@@ -14,7 +14,7 @@ class ThinkingBudgetTokens(Rule):
     name = "thinking-budget-tokens"
     summary = 'thinking {"type": "enabled", "budget_tokens": N} sent to a Claude model that rejects it (400)'
     references = (
-        "https://platform.claude.com/docs/en/docs/build-with-claude/adaptive-thinking",
+        "https://platform.claude.com/docs/en/build-with-claude/thinking-steering-and-cost",
         "https://github.com/posit-dev/chatlas/pull/448",
     )
 

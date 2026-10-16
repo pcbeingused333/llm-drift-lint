@@ -20,7 +20,7 @@ class LowMaxTokensThinking(Rule):
     name = "low-max-tokens-thinking"
     summary = f"max_tokens < {MIN_MAX_TOKENS} on a Claude model that thinks by default (no text in the reply)"
     references = (
-        "https://platform.claude.com/docs/en/docs/build-with-claude/adaptive-thinking",
+        "https://platform.claude.com/docs/en/build-with-claude/thinking-steering-and-cost",
         "https://github.com/patterns-ai-core/langchainrb/pull/1073",
         "https://github.com/livekit/agents/issues/7726",
     )

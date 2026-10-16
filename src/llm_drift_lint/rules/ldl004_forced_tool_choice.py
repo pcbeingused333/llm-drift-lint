@@ -16,7 +16,7 @@ class ForcedToolChoice(Rule):
     name = "forced-tool-choice"
     summary = 'tool_choice {"type": "tool"|"any"} sent to a Claude model that rejects forcing a tool (400)'
     references = (
-        "https://platform.claude.com/docs/en/docs/agents-and-tools/tool-use/implement-tool-use",
+        "https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools",
         "https://github.com/Arize-ai/phoenix/pull/17027",
         "https://github.com/valentinfrlch/ha-llmvision/pull/747",
         "https://github.com/truera/trulens/pull/2948",
