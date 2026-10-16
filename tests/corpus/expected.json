@@ -1,0 +1,380 @@
+{
+  "_doc": "Findings a correct linter reports on tests/corpus. Paths are relative to the case directory. A finding matches when rule ids are equal, paths are equal, and the reported line is in [line, end_line]. 'required': a correct v0.1 linter must report it. 'optional': a real bug the linter may report but isn't required to (it needs information v0.1 doesn't resolve). Any other finding is a false positive.",
+  "cases": [
+    {
+      "id": "phoenix-17026-17027-pre",
+      "kind": "pre-fix",
+      "prs": [
+        "https://github.com/Arize-ai/phoenix/pull/17026",
+        "https://github.com/Arize-ai/phoenix/pull/17027"
+      ],
+      "repo": "Arize-ai/phoenix",
+      "commit": "d92a385a2bd891878c59abe95bd823923f5be7a8",
+      "license": "Elastic-2.0",
+      "findings": [
+        {
+          "rule": "LDL003",
+          "path": "packages/phoenix-evals/src/phoenix/evals/llm/adapters/anthropic/adapter.py",
+          "line": 94,
+          "end_line": 94,
+          "status": "required",
+          "why": "`response.content[0].text` on a messages.create() response: block 0 is a thinking block on models that think by default."
+        },
+        {
+          "rule": "LDL003",
+          "path": "packages/phoenix-evals/src/phoenix/evals/llm/adapters/anthropic/adapter.py",
+          "line": 121,
+          "end_line": 121,
+          "status": "required",
+          "why": "`response.content[0].text` on a messages.create() response: block 0 is a thinking block on models that think by default."
+        },
+        {
+          "rule": "LDL002",
+          "path": "packages/phoenix-evals/src/phoenix/evals/llm/adapters/anthropic/adapter.py",
+          "line": 92,
+          "end_line": 92,
+          "status": "optional",
+          "why": "Sampling parameters reach messages.create() through **kwargs from the caller, so they aren't visible statically."
+        },
+        {
+          "rule": "LDL002",
+          "path": "packages/phoenix-evals/src/phoenix/evals/llm/adapters/anthropic/adapter.py",
+          "line": 117,
+          "end_line": 119,
+          "status": "optional",
+          "why": "Sampling parameters reach messages.create() through **kwargs from the caller, so they aren't visible statically."
+        },
+        {
+          "rule": "LDL002",
+          "path": "packages/phoenix-evals/src/phoenix/evals/llm/adapters/anthropic/adapter.py",
+          "line": 197,
+          "end_line": 203,
+          "status": "optional",
+          "why": "Sampling parameters reach messages.create() through **kwargs from the caller, so they aren't visible statically."
+        },
+        {
+          "rule": "LDL002",
+          "path": "packages/phoenix-evals/src/phoenix/evals/llm/adapters/anthropic/adapter.py",
+          "line": 224,
+          "end_line": 230,
+          "status": "optional",
+          "why": "Sampling parameters reach messages.create() through **kwargs from the caller, so they aren't visible statically."
+        },
+        {
+          "rule": "LDL004",
+          "path": "packages/phoenix-evals/src/phoenix/evals/llm/adapters/anthropic/adapter.py",
+          "line": 197,
+          "end_line": 203,
+          "status": "optional",
+          "why": "Forced tool_choice, but model=self.model can't be resolved statically, so a v0.1 rule stays silent."
+        },
+        {
+          "rule": "LDL004",
+          "path": "packages/phoenix-evals/src/phoenix/evals/llm/adapters/anthropic/adapter.py",
+          "line": 224,
+          "end_line": 230,
+          "status": "optional",
+          "why": "Forced tool_choice, but model=self.model can't be resolved statically, so a v0.1 rule stays silent."
+        }
+      ]
+    },
+    {
+      "id": "phoenix-17026-post",
+      "kind": "post-fix",
+      "prs": [
+        "https://github.com/Arize-ai/phoenix/pull/17026"
+      ],
+      "repo": "Arize-ai/phoenix",
+      "commit": "0817cb775d6e71872028f9432c51a68716b74216",
+      "license": "Elastic-2.0",
+      "notes": "Sampling parameters now go in extra_body: no LDL002 finding is allowed. pyproject.toml is unchanged from the base commit.",
+      "findings": [
+        {
+          "rule": "LDL003",
+          "path": "packages/phoenix-evals/src/phoenix/evals/llm/adapters/anthropic/adapter.py",
+          "line": 106,
+          "end_line": 106,
+          "status": "required",
+          "why": "Not fixed by this PR: the content[0] fix is Arize-ai/phoenix#16005, still open."
+        },
+        {
+          "rule": "LDL003",
+          "path": "packages/phoenix-evals/src/phoenix/evals/llm/adapters/anthropic/adapter.py",
+          "line": 133,
+          "end_line": 133,
+          "status": "required",
+          "why": "Not fixed by this PR: the content[0] fix is Arize-ai/phoenix#16005, still open."
+        },
+        {
+          "rule": "LDL004",
+          "path": "packages/phoenix-evals/src/phoenix/evals/llm/adapters/anthropic/adapter.py",
+          "line": 209,
+          "end_line": 215,
+          "status": "optional",
+          "why": "Forced tool_choice, but model=self.model can't be resolved statically, so a v0.1 rule stays silent. Fixed separately by #17027."
+        },
+        {
+          "rule": "LDL004",
+          "path": "packages/phoenix-evals/src/phoenix/evals/llm/adapters/anthropic/adapter.py",
+          "line": 236,
+          "end_line": 242,
+          "status": "optional",
+          "why": "Forced tool_choice, but model=self.model can't be resolved statically, so a v0.1 rule stays silent. Fixed separately by #17027."
+        }
+      ]
+    },
+    {
+      "id": "phoenix-17027-post",
+      "kind": "post-fix",
+      "prs": [
+        "https://github.com/Arize-ai/phoenix/pull/17027"
+      ],
+      "repo": "Arize-ai/phoenix",
+      "commit": "648478d02a55a411075ee687efcddd845f5d6ea9",
+      "license": "Elastic-2.0",
+      "notes": "tool_choice is now self._tool_choice(); the forced dict literal inside _tool_choice() is only returned for models that accept it, so no LDL004 finding is allowed. pyproject.toml is unchanged from the base commit.",
+      "findings": [
+        {
+          "rule": "LDL003",
+          "path": "packages/phoenix-evals/src/phoenix/evals/llm/adapters/anthropic/adapter.py",
+          "line": 103,
+          "end_line": 103,
+          "status": "required",
+          "why": "Not fixed by this PR: the content[0] fix is Arize-ai/phoenix#16005, still open."
+        },
+        {
+          "rule": "LDL003",
+          "path": "packages/phoenix-evals/src/phoenix/evals/llm/adapters/anthropic/adapter.py",
+          "line": 130,
+          "end_line": 130,
+          "status": "required",
+          "why": "Not fixed by this PR: the content[0] fix is Arize-ai/phoenix#16005, still open."
+        },
+        {
+          "rule": "LDL002",
+          "path": "packages/phoenix-evals/src/phoenix/evals/llm/adapters/anthropic/adapter.py",
+          "line": 101,
+          "end_line": 101,
+          "status": "optional",
+          "why": "Sampling parameters reach messages.create() through **kwargs from the caller, so they aren't visible statically. Fixed separately by #17026."
+        },
+        {
+          "rule": "LDL002",
+          "path": "packages/phoenix-evals/src/phoenix/evals/llm/adapters/anthropic/adapter.py",
+          "line": 126,
+          "end_line": 128,
+          "status": "optional",
+          "why": "Sampling parameters reach messages.create() through **kwargs from the caller, so they aren't visible statically. Fixed separately by #17026."
+        },
+        {
+          "rule": "LDL002",
+          "path": "packages/phoenix-evals/src/phoenix/evals/llm/adapters/anthropic/adapter.py",
+          "line": 206,
+          "end_line": 212,
+          "status": "optional",
+          "why": "Sampling parameters reach messages.create() through **kwargs from the caller, so they aren't visible statically. Fixed separately by #17026."
+        },
+        {
+          "rule": "LDL002",
+          "path": "packages/phoenix-evals/src/phoenix/evals/llm/adapters/anthropic/adapter.py",
+          "line": 233,
+          "end_line": 239,
+          "status": "optional",
+          "why": "Sampling parameters reach messages.create() through **kwargs from the caller, so they aren't visible statically. Fixed separately by #17026."
+        }
+      ]
+    },
+    {
+      "id": "reward-bench-290-pre",
+      "kind": "pre-fix",
+      "prs": [
+        "https://github.com/allenai/reward-bench/pull/290"
+      ],
+      "repo": "allenai/reward-bench",
+      "commit": "5b958c9d9dc5533cd6bca9e212244a5f5ff07512",
+      "license": "Apache-2.0",
+      "findings": [
+        {
+          "rule": "LDL003",
+          "path": "rewardbench/generative.py",
+          "line": 785,
+          "end_line": 785,
+          "status": "required",
+          "why": "`response.content[0].text` on a messages.create() response: block 0 is a thinking block on models that think by default."
+        },
+        {
+          "rule": "LDL003",
+          "path": "rewardbench/generative_v2.py",
+          "line": 262,
+          "end_line": 262,
+          "status": "required",
+          "why": "`response.content[0].text` on a messages.create() response: block 0 is a thinking block on models that think by default."
+        },
+        {
+          "rule": "LDL003",
+          "path": "rewardbench/generative_v2.py",
+          "line": 540,
+          "end_line": 540,
+          "status": "required",
+          "why": "`response.content[0].text` on a messages.create() response: block 0 is a thinking block on models that think by default."
+        },
+        {
+          "rule": "LDL002",
+          "path": "rewardbench/generative.py",
+          "line": 777,
+          "end_line": 784,
+          "status": "optional",
+          "why": "temperature= keyword on messages.create(), but pyproject.toml lists `anthropic` unpinned, not anthropic>=1."
+        },
+        {
+          "rule": "LDL002",
+          "path": "rewardbench/generative_v2.py",
+          "line": 532,
+          "end_line": 539,
+          "status": "optional",
+          "why": "temperature= keyword on messages.create(), but pyproject.toml lists `anthropic` unpinned, not anthropic>=1."
+        },
+        {
+          "rule": "LDL002",
+          "path": "rewardbench/generative_v2.py",
+          "line": 261,
+          "end_line": 261,
+          "status": "optional",
+          "why": "temperature reaches messages.create() through **params, and the dependency is unpinned."
+        },
+        {
+          "rule": "LDL001",
+          "path": "rewardbench/generative.py",
+          "line": 777,
+          "end_line": 784,
+          "status": "optional",
+          "why": "model is a function argument."
+        },
+        {
+          "rule": "LDL001",
+          "path": "rewardbench/generative_v2.py",
+          "line": 532,
+          "end_line": 539,
+          "status": "optional",
+          "why": "model is a function argument."
+        }
+      ]
+    },
+    {
+      "id": "reward-bench-290-post",
+      "kind": "post-fix",
+      "prs": [
+        "https://github.com/allenai/reward-bench/pull/290"
+      ],
+      "repo": "allenai/reward-bench",
+      "commit": "135298609bc8d860319175510bcbcfaaa40d7305",
+      "license": "Apache-2.0",
+      "findings": []
+    },
+    {
+      "id": "trulens-2948-pre",
+      "kind": "pre-fix",
+      "prs": [
+        "https://github.com/truera/trulens/pull/2948"
+      ],
+      "repo": "truera/trulens",
+      "commit": "7123b62bba21e665c95c99c3ab80f4ea190745c9",
+      "license": "MIT",
+      "notes": "The request is built in a dict and messages.create is passed as a function reference to run_in_pace(), and the model is self.model_engine (default claude-sonnet-4-6, which accepts both). Nothing is required here; the file is mostly a false-positive check.",
+      "findings": [
+        {
+          "rule": "LDL001",
+          "path": "src/providers/anthropic/trulens/providers/anthropic/provider.py",
+          "line": 226,
+          "end_line": 226,
+          "status": "optional",
+          "why": "Default temperature=0.0 set in a request dict, model unresolved."
+        },
+        {
+          "rule": "LDL004",
+          "path": "src/providers/anthropic/trulens/providers/anthropic/provider.py",
+          "line": 241,
+          "end_line": 244,
+          "status": "optional",
+          "why": "Forced tool_choice set in a request dict, model unresolved."
+        }
+      ]
+    },
+    {
+      "id": "trulens-2948-post",
+      "kind": "post-fix",
+      "prs": [
+        "https://github.com/truera/trulens/pull/2948"
+      ],
+      "repo": "truera/trulens",
+      "commit": "f1f5ee2f0c99e289e6b19187f29a7bafc8e67e25",
+      "license": "MIT",
+      "notes": "pyproject.toml is unchanged from the base commit.",
+      "findings": []
+    },
+    {
+      "id": "chatlas-448-pre",
+      "kind": "pre-fix",
+      "prs": [
+        "https://github.com/posit-dev/chatlas/pull/448"
+      ],
+      "repo": "posit-dev/chatlas",
+      "commit": "1746ec65e34953b34aede894c9e8b47a97868778",
+      "license": "MIT",
+      "notes": "The budget_tokens config is built in a dict that later reaches messages.create(**kwargs); the default model is us.anthropic.claude-sonnet-5 (line 1498), which rejects it.",
+      "findings": [
+        {
+          "rule": "LDL005",
+          "path": "chatlas/_provider_anthropic.py",
+          "line": 312,
+          "end_line": 312,
+          "status": "optional",
+          "why": "ChatAnthropic: int reasoning becomes budget_tokens; default model claude-sonnet-5, but the user can pick any model."
+        },
+        {
+          "rule": "LDL005",
+          "path": "chatlas/_provider_anthropic.py",
+          "line": 1503,
+          "end_line": 1503,
+          "status": "optional",
+          "why": "ChatBedrockAnthropic: int reasoning becomes budget_tokens; its default us.anthropic.claude-sonnet-5 rejects it."
+        }
+      ]
+    },
+    {
+      "id": "chatlas-448-post",
+      "kind": "post-fix",
+      "prs": [
+        "https://github.com/posit-dev/chatlas/pull/448"
+      ],
+      "repo": "posit-dev/chatlas",
+      "commit": "a06b46cc3dd0b85f476942e5b55326382648f273",
+      "license": "MIT",
+      "notes": "reasoning_kwargs() still builds {'type': 'enabled', 'budget_tokens': N} for an int, which is correct for older models: it must not be flagged.",
+      "findings": []
+    },
+    {
+      "id": "ha-llmvision-747-pre",
+      "kind": "pre-fix",
+      "prs": [
+        "https://github.com/valentinfrlch/ha-llmvision/pull/747"
+      ],
+      "repo": "valentinfrlch/ha-llmvision",
+      "commit": "68ecf5aa019080ebc9afba389bccdf5c88fee3d7",
+      "license": "Apache-2.0",
+      "notes": "Raw HTTP payloads (no SDK calls) for a dozen providers, with many temperature, budget_tokens and tool_choice keys. Nothing is required; the file is a false-positive check.",
+      "findings": []
+    },
+    {
+      "id": "ha-llmvision-747-post",
+      "kind": "post-fix",
+      "prs": [
+        "https://github.com/valentinfrlch/ha-llmvision/pull/747"
+      ],
+      "repo": "valentinfrlch/ha-llmvision",
+      "commit": "429dab1c9692cd0c870fe55df88f670d69764249",
+      "license": "Apache-2.0",
+      "findings": []
+    }
+  ]
+}
