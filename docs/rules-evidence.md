@@ -39,15 +39,34 @@ TruLens #2948, ha-llmvision #747, chatlas #448 and langchainrb #1073 say so).
 
 ## Disagreements and decisions
 
-1. **"all" vs "non_default" sampling.** langchainrb#1055, TruLens#2948 and the article
-   draft say Opus 4.7 and later reject `temperature`/`top_p`/`top_k` with *any* value, and
-   Sonnet 5, Sonnet 5.5 and Haiku 5.5 only non-default values. WeKnora#4155 says
-   non-default values for Opus 4.7+ and Sonnet 5. Anthropic's thinking page ("Sampling
-   parameters") and the deprecations page both say *non-default* values return a 400 on
-   every 4.7+ model. **Decision:** `non_default` for all of them; `"all"` is unused. Every
-   source agrees that non-default values fail, so this choice can't add a false positive.
-   It can miss one case: if "any value" is right, `temperature=1.0` sent to an Opus is
-   still a 400.
+1. **"all" vs "non_default" sampling.** Two PRs say Opus 4.7 and later reject the sampling
+   parameters with *any* value:
+   - langchainrb#1055: "Claude Opus 4.7 and later (Opus 4.8, Opus 5, Opus 5.5) don't accept
+     `temperature`, `top_p` or `top_k` at all. Any value returns a 400." and "Claude Sonnet
+     5, Sonnet 5.5 and Haiku 5.5 return a 400 for any non-default value."
+   - TruLens#2948: "Claude Opus 4.7 and later (Opus 4.8, Opus 5, Opus 5.5, Fable 5 / 5.1)
+     reject `temperature` with a 400. Claude Sonnet 5 / 5.5 and Haiku 5.5 reject any
+     non-default value, and 0.0 is not the default."
+
+   WeKnora#4155 is often grouped with them, but it says *non-default*: "Claude Opus 4.7
+   and later (Opus 4.8, Opus 5, Fable 5 and Fable 5.1) and Claude Sonnet 5 reject
+   non-default values for `temperature`, `top_p` and `top_k` with a 400", citing the
+   deprecations page. Anthropic's documentation says non-default on every model:
+   - [Thinking → Sampling parameters](https://platform.claude.com/docs/en/build-with-claude/thinking):
+     "On Claude Fable 5.1, Claude Mythos 5.1, Claude Fable 5, Claude Mythos 5, Claude
+     Mythos Preview, Claude Opus 5.5, Claude Opus 5, Claude Opus 4.8, Claude Opus 4.7,
+     Claude Sonnet 5.5, Claude Sonnet 5, and Claude Haiku 5.5, non-default `temperature`,
+     `top_p`, or `top_k` values return a 400 error on every request, regardless of whether
+     thinking is used."
+   - [Model deprecations → API parameter deprecations](https://platform.claude.com/docs/en/about-claude/model-deprecations),
+     row `temperature`, `top_p`, `top_k`: "Deprecated (Claude 4.7 and later models)" /
+     "Returns a 400 error when set to a non-default value on Claude 4.7 and later models
+     and Claude Mythos Preview."
+
+   **Decision:** `non_default` for all of them; `"all"` is unused. Every source agrees
+   that non-default values fail, so this choice can't add a false positive. It can miss
+   one case: if "any value" is right, `temperature=1.0` sent to an Opus is still a 400.
+   No source says it tested `temperature=1.0` on an Opus against the live API.
 2. **What "default" means.** The contract says `non_default` means "any value other than
    1.0". The thinking docs say `top_p`'s default is **0.99** on these models, so `top_p=1`
    is a 400, and so is a request that sets **both** `temperature` and `top_p`, even at
@@ -139,8 +158,8 @@ above as secondary sources.
 
 `scripts/fp_scan.py` runs every registered rule over the repos in
 `~/.cache/claude-scratch/repos/` (19 repos, about 12,800 non-test Python files) and writes
-`~/.cache/claude-scratch/ldl-fp.txt`. On 2026-10-16 no rule was registered yet, so it
-reported 0 findings. Rerun it after each rule lands.
+`~/.cache/claude-scratch/ldl-fp.txt`. On 2026-10-16, after merging main (LDL001–LDL006
+registered, LDL003 still v1), it reported 0 findings. Rerun it after each rule change.
 
 A throwaway `.content[0].text` probe (not committed) flagged
 `libs/partners/anthropic/langchain_anthropic/llms.py:288` and `:325` in langchain
