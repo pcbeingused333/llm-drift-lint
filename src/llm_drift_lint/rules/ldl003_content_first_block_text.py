@@ -6,7 +6,7 @@ import ast
 from collections.abc import Iterator
 
 from ..core import CallSite, FileContext, Finding, Rule, register
-from ._common import dict_field, dict_str, has_splat, site_traits
+from ._common import dict_field, dict_str, site_traits
 
 # Calls that return a complete Message. Streams are left out: their final message comes from a helper.
 _RESPONSE_CALLS = ("messages.create", "messages.parse")
@@ -173,20 +173,26 @@ def _guarded_names(nodes: list[ast.AST]) -> set[str]:
 
 
 def _thinking_reason(site: CallSite) -> str | None:
-    """Why the request's response can start with a thinking block, or None if it can't be told."""
+    """Why the request's response can start with a thinking block, or None when it can't.
+
+    Unlike the other rules, this one also fires when the model is unresolved or unknown (Alex's
+    decision, COORDINATION.md "LDL003 v2"): reading block 0 is fragile on every current Claude model.
+    It stays silent only when the request visibly sets `thinking` to something other than
+    enabled/adaptive, or the model is known not to think by default.
+    """
     thinking = site.kwargs.get("thinking")
     if thinking is None:
         thinking = dict_field(site.kwargs.get("extra_body"), "thinking")
     if thinking is not None:
         kind = dict_str(thinking, "type")
-        return (
-            f'the request enables thinking ({{"type": "{kind}"}})'
-            if kind in ("enabled", "adaptive")
-            else None
-        )
-    if has_splat(site) or "extra_body" in site.kwargs and not isinstance(site.kwargs["extra_body"], ast.Dict):
-        return None  # thinking may be set where we can't see it
+        if kind in ("enabled", "adaptive"):
+            return f'the request enables thinking ({{"type": "{kind}"}})'
+        if isinstance(thinking, ast.Dict):
+            return None  # visibly disabled (or another type)
+        return "the request sets `thinking` from a value that can enable it"
     traits = site_traits(site)
-    if traits is not None and traits.thinks_by_default:
+    if traits is None:
+        return "current Claude models think by default unless `thinking` is disabled"
+    if traits.thinks_by_default:
         return f"{site.model()} thinks by default when the request has no `thinking` field"
     return None
