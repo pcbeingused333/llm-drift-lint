@@ -21,7 +21,7 @@ def test_calls_match_sdk_method_chains_regardless_of_receiver():
         """
     )
     targets = [site.target for site in c.calls(*ANTHROPIC_MESSAGE_CALLS)]
-    assert targets == ["messages.create", "beta.messages.stream", "messages.create"]
+    assert targets == ["messages.create", "client.beta.messages.stream", "messages.create"]
 
 
 def test_model_resolves_literals_and_module_constants():

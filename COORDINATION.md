@@ -20,7 +20,7 @@ Rules:
 
 ## The contract (core.py, frozen for v0.1)
 
-- `FileContext.parse(source, path)` → context or `None` on a syntax error. `ctx.calls(*suffixes)` yields `CallSite`s whose dotted target ends with a suffix, e.g. `ANTHROPIC_MESSAGE_CALLS`, `OPENAI_CHAT_CALLS`, `OPENAI_RESPONSES_CALLS`.
+- `FileContext.parse(source, path)` → context or `None` on a syntax error. `ctx.calls(*suffixes)` yields `CallSite`s, in source order, whose dotted target (callee chain minus its root variable; `self.client.messages.create` → `client.messages.create`) ends with a suffix, e.g. `ANTHROPIC_MESSAGE_CALLS`, `OPENAI_CHAT_CALLS`, `OPENAI_RESPONSES_CALLS`.
 - `CallSite`: `.target`, `.kwargs` (name → AST node), `.kwarg_literal(name)` (literal value, or a module-level constant, else `None`), `.model()` (resolved `model=` string or `None`), `.line`, `.col`, `.node`.
 - A rule subclasses `Rule`, sets `id` (`LDL001`…), `name` (kebab-case), `summary`, `references` (URLs of docs and of the real PRs), implements `check(ctx) -> Iterator[Finding]`, and is decorated with `@register`. Build findings with `self.finding(site, ctx, message, hint)`.
 - Model knowledge lives **only** in `models.py`: rules call `models.traits(model_id)` and read `ModelTraits` fields. Never hard-code model names in a rule.

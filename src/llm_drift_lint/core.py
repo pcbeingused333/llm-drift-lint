@@ -25,10 +25,12 @@ class CallSite:
     """A call such as ``client.messages.create(model=..., temperature=0)``."""
 
     node: ast.Call
-    # Dotted attribute chain of the callee, without the receiver variable:
-    # ``self.client.messages.create(...)`` -> "messages.create",
-    # ``anthropic.Anthropic().beta.messages.stream(...)`` -> "beta.messages.stream".
+    # Dotted attribute chain of the callee without its root variable:
+    # ``client.messages.create(...)`` -> "messages.create",
+    # ``self.client.beta.messages.stream(...)`` -> "client.beta.messages.stream",
+    # ``anthropic.Anthropic().messages.create(...)`` -> "messages.create".
     # Plain function calls keep their name: ``completion(...)`` -> "completion".
+    # Match with ``ctx.calls(*suffixes)``, which compares suffixes, rather than on the full target.
     target: str
     kwargs: dict[str, ast.expr]
     ctx: FileContext
@@ -107,10 +109,12 @@ class FileContext:
         return None
 
     def calls(self, *suffixes: str) -> Iterator[CallSite]:
-        """Every call whose target ends with one of ``suffixes`` (all calls if none given)."""
-        for node in ast.walk(self.tree):
-            if not isinstance(node, ast.Call):
-                continue
+        """Every call whose target ends with one of ``suffixes`` (all calls if none given), in source order."""
+        nodes = sorted(
+            (n for n in ast.walk(self.tree) if isinstance(n, ast.Call)),
+            key=lambda n: (n.lineno, n.col_offset),
+        )
+        for node in nodes:
             target = _dotted_target(node.func)
             if target is None:
                 continue
