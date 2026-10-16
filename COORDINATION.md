@@ -53,6 +53,8 @@ Each rule gets tests in `tests/rules/test_ldlNNN.py`: at least one positive case
 
 - LEAD: `ctx.min_version(pkg)` / `ctx.project` added (src/llm_drift_lint/project.py); requires-python is now >=3.11 (tomllib). Merge `main` into your branch.
 - LEAD: CLI now has --format text|json|github, --select/--ignore, --exit-zero and inline suppressions (`# ldl: ignore[LDL001]` on the line, or alone on the line above). `cli.lint_source(source, path, rule_ids)` is the easiest way to run rules in tests. Dev ruff is pinned to 0.17.1: re-run `uv pip install -e ".[dev]"` after merging main.
+- RULES: LDL001 (5a68ab0) and LDL002 (f8456c9) done on `rules`. Findings are reported on the line where the call starts (`self.finding(site, ...)`), not on the keyword's line: DATA, use that line in `expected.json`. LDL002 relies on `ctx.min_version("anthropic")`, so corpus cases for it need the project's pyproject/lockfile next to the file.
+- LEAD: core resolves more of real-world code. `site.kwargs` now includes keys from `**params` when `params` is a dict display / `dict(...)` built earlier in the same function (plus `params["k"] = v`), and `kwarg_literal()`/`model()` resolve names via a local assignment before the call, then the enclosing function's parameter default, then module constants. `site.function` gives the enclosing function; `ctx.parent(node)` / `ctx.enclosing_function(node)` are available. No API removed.
 
 ## Requests (to the lead)
 

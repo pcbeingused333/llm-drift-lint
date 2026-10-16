@@ -45,10 +45,18 @@ class CallSite:
     def col(self) -> int:
         return self.node.col_offset
 
+    @property
+    def function(self) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+        """The function or method the call is in (None at module level)."""
+        return self.ctx.enclosing_function(self.node)
+
     def kwarg_literal(self, name: str) -> object | None:
-        """The keyword argument's value if it is a literal (or a module/function constant), else None."""
+        """The keyword argument's value if it can be resolved statically, else None.
+
+        Resolves literals, then names: a local assignment before the call in the same function, the
+        enclosing function's parameter default, then a module-level constant."""
         node = self.kwargs.get(name)
-        return None if node is None else self.ctx.literal(node)
+        return None if node is None else self.ctx.literal(node, scope=self.node)
 
     def model(self) -> str | None:
         """The ``model=`` value when it can be resolved statically."""
@@ -68,6 +76,7 @@ class FileContext:
     source: str
     tree: ast.Module
     _constants: dict[str, object] = field(default_factory=dict)
+    _parents: dict[ast.AST, ast.AST] = field(default_factory=dict)
 
     @classmethod
     def parse(cls, source: str, path: Path = Path("<string>")) -> FileContext | None:
@@ -77,7 +86,19 @@ class FileContext:
             return None
         ctx = cls(path, source, tree)
         ctx._collect_constants()
+        for parent in ast.walk(tree):
+            for child in ast.iter_child_nodes(parent):
+                ctx._parents[child] = parent
         return ctx
+
+    def parent(self, node: ast.AST) -> ast.AST | None:
+        return self._parents.get(node)
+
+    def enclosing_function(self, node: ast.AST) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+        cur = self._parents.get(node)
+        while cur is not None and not isinstance(cur, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            cur = self._parents.get(cur)
+        return cur
 
     def _collect_constants(self) -> None:
         # NAME = "literal" anywhere in the file. Last assignment wins; good enough for model ids.
@@ -113,14 +134,38 @@ class FileContext:
         None when the project doesn't say."""
         return self.project.min_version(package)
 
-    def literal(self, node: ast.expr) -> object | None:
+    def literal(self, node: ast.expr, scope: ast.AST | None = None) -> object | None:
+        """Statically resolve ``node``. With ``scope`` (a node inside a function), names are looked up
+        in that function first: the last simple assignment before ``scope``, then a parameter default."""
         try:
             return ast.literal_eval(node)
         except (ValueError, SyntaxError, TypeError):
             pass
-        if isinstance(node, ast.Name):
-            return self._constants.get(node.id)
-        return None
+        if not isinstance(node, ast.Name):
+            return None
+        fn = self.enclosing_function(scope) if scope is not None else None
+        if fn is not None:
+            found, value = _local_value(fn, node.id, scope)
+            if found:
+                return value
+        return self._constants.get(node.id)
+
+    def _expanded_kwargs(self, call: ast.Call) -> dict[str, ast.expr]:
+        """Keys of ``**mapping`` expansions that can be resolved: a dict display, or a name bound to a
+        dict display (plus ``name["key"] = value`` assignments) earlier in the same function."""
+        out: dict[str, ast.expr] = {}
+        for kw in call.keywords:
+            if kw.arg is not None:
+                continue
+            value = kw.value
+            if isinstance(value, ast.Name):
+                fn = self.enclosing_function(call)
+                value = _local_dict(fn, value.id, call) if fn is not None else None
+            if isinstance(value, ast.Dict):
+                for k, v in zip(value.keys, value.values, strict=True):
+                    if isinstance(k, ast.Constant) and isinstance(k.value, str):
+                        out[k.value] = v
+        return out
 
     def calls(self, *suffixes: str) -> Iterator[CallSite]:
         """Every call whose target ends with one of ``suffixes`` (all calls if none given), in source order."""
@@ -134,8 +179,84 @@ class FileContext:
                 continue
             if suffixes and not any(target == s or target.endswith("." + s) for s in suffixes):
                 continue
-            kwargs = {k.arg: k.value for k in node.keywords if k.arg is not None}
+            # Explicit keywords win over keys found in ** expansions, as at runtime for later keys.
+            kwargs = self._expanded_kwargs(node)
+            kwargs.update({k.arg: k.value for k in node.keywords if k.arg is not None})
             yield CallSite(node, target, kwargs, self)
+
+
+def _before(node: ast.AST, limit: ast.AST) -> bool:
+    return (node.lineno, node.col_offset) < (limit.lineno, limit.col_offset)  # type: ignore[attr-defined]
+
+
+def _local_value(
+    fn: ast.FunctionDef | ast.AsyncFunctionDef, name: str, limit: ast.AST
+) -> tuple[bool, object]:
+    """(found, value) for ``name`` inside ``fn`` before ``limit``. A non-literal assignment counts as
+    found-but-unknown, so a module constant with the same name doesn't leak in."""
+    found, value = False, None
+    args = fn.args
+    positional = args.posonlyargs + args.args
+    defaults = [None] * (len(positional) - len(args.defaults)) + list(args.defaults)
+    for arg, default in [
+        *zip(positional, defaults, strict=True),
+        *zip(args.kwonlyargs, args.kw_defaults, strict=True),
+    ]:
+        if arg.arg == name:
+            found = True
+            try:
+                value = ast.literal_eval(default) if default is not None else None
+            except (ValueError, SyntaxError, TypeError):
+                value = None
+    for node in ast.walk(fn):
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)) or not _before(node, limit):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        if any(isinstance(t, ast.Name) and t.id == name for t in targets) and node.value is not None:
+            found = True
+            try:
+                value = ast.literal_eval(node.value)
+            except (ValueError, SyntaxError, TypeError):
+                value = None
+    return found, value
+
+
+def _local_dict(fn: ast.FunctionDef | ast.AsyncFunctionDef, name: str, limit: ast.AST) -> ast.Dict | None:
+    """The dict display bound to ``name`` before ``limit``, merged with later ``name["k"] = v``
+    assignments (also before ``limit``). None when the binding isn't a plain dict display."""
+    base: ast.Dict | None = None
+    extra: list[tuple[ast.expr, ast.expr]] = []
+    for node in sorted(
+        (n for n in ast.walk(fn) if isinstance(n, ast.Assign) and _before(n, limit)),
+        key=lambda n: (n.lineno, n.col_offset),
+    ):
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id == name:
+                if isinstance(node.value, ast.Dict):
+                    base, extra = node.value, []
+                elif (
+                    isinstance(node.value, ast.Call)
+                    and isinstance(node.value.func, ast.Name)
+                    and node.value.func.id == "dict"
+                    and not node.value.args
+                ):
+                    base = ast.Dict(
+                        keys=[ast.Constant(k.arg) for k in node.value.keywords if k.arg],
+                        values=[k.value for k in node.value.keywords if k.arg],
+                    )
+                    extra = []
+                else:
+                    base, extra = None, []
+            elif (
+                isinstance(target, ast.Subscript)
+                and isinstance(target.value, ast.Name)
+                and target.value.id == name
+                and isinstance(target.slice, ast.Constant)
+            ):
+                extra.append((target.slice, node.value))
+    if base is None:
+        return None
+    return ast.Dict(keys=[*base.keys, *(k for k, _ in extra)], values=[*base.values, *(v for _, v in extra)])
 
 
 def _dotted_target(func: ast.expr) -> str | None:

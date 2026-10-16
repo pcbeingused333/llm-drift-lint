@@ -50,3 +50,64 @@ def test_kwarg_literal():
 
 def test_unparseable_source_returns_none():
     assert FileContext.parse("def broken(:") is None
+
+
+def test_kwargs_from_a_dict_built_in_the_same_function():
+    c = ctx(
+        """
+        def judge(client, prompt, model="claude-opus-5-5"):
+            params = {"model": model, "max_tokens": 256}
+            params["temperature"] = 0.0
+            return client.messages.create(**params, messages=[{"role": "user", "content": prompt}])
+        """
+    )
+    (site,) = c.calls("messages.create")
+    assert site.kwarg_literal("temperature") == 0.0
+    assert site.kwarg_literal("max_tokens") == 256
+    assert site.model() == "claude-opus-5-5"  # parameter default, through the dict
+    assert "messages" in site.kwargs
+
+
+def test_dict_call_and_inline_dict_expansion():
+    c = ctx(
+        """
+        def f(client):
+            opts = dict(model="claude-sonnet-5-5", top_p=0.9)
+            client.messages.create(**opts)
+            client.messages.create(**{"temperature": 0.2}, model="m")
+        """
+    )
+    first, second = c.calls("messages.create")
+    assert first.model() == "claude-sonnet-5-5" and first.kwarg_literal("top_p") == 0.9
+    assert second.kwarg_literal("temperature") == 0.2 and second.model() == "m"
+
+
+def test_assignments_after_the_call_and_unknown_dicts_are_ignored():
+    c = ctx(
+        """
+        def f(client, extra):
+            params = build_params()
+            client.messages.create(**params, model="m")
+            params = {"temperature": 0}
+        """
+    )
+    (site,) = c.calls("messages.create")
+    assert site.kwarg_literal("temperature") is None
+    assert site.model() == "m"
+
+
+def test_local_binding_shadows_module_constant():
+    c = ctx(
+        """
+        MODEL = "claude-opus-5-5"
+
+        def f(client, MODEL):
+            client.messages.create(model=MODEL)
+
+        def g(client):
+            client.messages.create(model=MODEL)
+        """
+    )
+    in_f, in_g = c.calls("messages.create")
+    assert in_f.model() is None  # parameter without default: unknown, not the module constant
+    assert in_g.model() == "claude-opus-5-5"
