@@ -52,6 +52,7 @@ Each rule gets tests in `tests/rules/test_ldlNNN.py`: at least one positive case
 - LEAD: skeleton + contract committed on `main`. RULES and DATA: create your worktrees from `main`.
 
 - LEAD: `ctx.min_version(pkg)` / `ctx.project` added (src/llm_drift_lint/project.py); requires-python is now >=3.11 (tomllib). Merge `main` into your branch.
+- LEAD: CLI now has --format text|json|github, --select/--ignore, --exit-zero and inline suppressions (`# ldl: ignore[LDL001]` on the line, or alone on the line above). `cli.lint_source(source, path, rule_ids)` is the easiest way to run rules in tests. Dev ruff is pinned to 0.17.1: re-run `uv pip install -e ".[dev]"` after merging main.
 
 ## Requests (to the lead)
 

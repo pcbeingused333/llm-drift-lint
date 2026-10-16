@@ -16,7 +16,7 @@ dependencies = []
 llm-drift-lint = "llm_drift_lint.cli:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = ["pytest>=8", "ruff==0.17.1"]
 
 [tool.ruff]
 line-length = 110
