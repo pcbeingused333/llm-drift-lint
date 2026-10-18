@@ -133,6 +133,104 @@ SOURCES: dict[str, list[str]] = {
 }
 
 
+# Current Claude ids in their plain Claude API spelling, one per row of MODEL_TABLE that has
+# restrictions. Rules that check a model gate (a hand-written list of ids or prefixes) test the gate
+# against these ids to find the models it misses.
+CLAUDE_IDS: tuple[str, ...] = (
+    "claude-fable-5-1",
+    "claude-mythos-5-1",
+    "claude-opus-5-5",
+    "claude-sonnet-5-5",
+    "claude-fable-5",
+    "claude-mythos-5",
+    "claude-opus-5",
+    "claude-sonnet-5",
+    "claude-haiku-5-5",
+    "claude-mythos-preview",
+    "claude-opus-4-8",
+    "claude-opus-4-7",
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
+    "claude-opus-4-5",
+    "claude-sonnet-4-5",
+    "claude-haiku-4-5",
+)
+
+OPENAI_DEPRECATIONS = "https://developers.openai.com/api/docs/deprecations"
+
+
+@dataclass(frozen=True)
+class Shutdown:
+    date: str  # ISO date the API stops serving the model
+    replacement: str  # the replacement OpenAI recommends
+
+
+def _shutdowns(date: str, replacements: dict[str, str]) -> dict[str, Shutdown]:
+    return {model: Shutdown(date, repl) for model, repl in replacements.items()}
+
+
+_TERRA, _SOL, _LUNA = "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna"
+
+# OpenAI model ids and the date the API stops serving them (OPENAI_DEPRECATIONS, checked 2026-10-18).
+# Keys are exact ids: an alias is listed only when the notice names it, so the 2027-01-14 notice
+# contributes snapshots only (it doesn't say what the gpt-4o / gpt-4.1 aliases point to afterwards).
+OPENAI_SHUTDOWNS: dict[str, Shutdown] = {
+    # Announced 2026-04-22.
+    **_shutdowns(
+        "2026-10-23",
+        {
+            "gpt-3.5-turbo": _TERRA,
+            "gpt-3.5-turbo-0125": _TERRA,
+            "gpt-4": _SOL,
+            "gpt-4-0613": _SOL,
+            "gpt-4-1106-preview": _SOL,
+            "gpt-4-turbo": _SOL,
+            "gpt-4-turbo-2024-04-09": _SOL,
+            "gpt-4o-2024-05-13": _SOL,
+            "gpt-4.1-nano": _LUNA,
+            "gpt-4.1-nano-2025-04-14": _LUNA,
+            "o1": _SOL,
+            "o1-2024-12-17": _SOL,
+            "o1-pro": 'gpt-5.6-sol with reasoning {"mode": "pro"}',
+            "o3-mini": _SOL,
+            "o3-mini-2025-01-31": _SOL,
+            "o4-mini": _TERRA,
+            "o4-mini-2025-04-16": _TERRA,
+            "gpt-image-1": "gpt-image-2.5-sunburst or gpt-image-2.5-flare",
+        },
+    ),
+    # Announced 2026-10-14.
+    **_shutdowns(
+        "2027-01-14",
+        {
+            "gpt-4o-2024-08-06": "gpt-6-luna",
+            "gpt-4o-2024-11-20": "gpt-6-luna",
+            "gpt-4o-mini-2024-07-18": "gpt-6-luna",
+            "gpt-4.1-2025-04-14": "gpt-6-luna",
+            "gpt-4.1-mini-2025-04-14": "gpt-6-luna",
+        },
+    ),
+    # Already shut down.
+    **_shutdowns("2026-09-28", {"gpt-3.5-turbo-instruct": _TERRA, "gpt-3.5-turbo-1106": _TERRA}),
+    **_shutdowns("2026-03-26", {"gpt-4-0314": _SOL, "gpt-4-0125-preview": _SOL}),
+}
+
+
+def openai_shutdown(model: str | None) -> Shutdown | None:
+    """The shutdown for an OpenAI model id, also behind an ``openai/`` router prefix. A fine-tune
+    (``ft:gpt-4-0613:org::id``) follows its base model, and ``ft:babbage-002`` / ``ft:davinci-002``
+    shut down on 2026-10-23. None when the model isn't listed."""
+    if not model:
+        return None
+    model = model.lower().removeprefix("openai/")
+    if model.startswith("ft:"):
+        base = model.split(":")[1]
+        if base in ("babbage-002", "davinci-002"):
+            return Shutdown("2026-10-23", _TERRA)
+        model = base
+    return OPENAI_SHUTDOWNS.get(model)
+
+
 def traits(model: str | None) -> ModelTraits | None:
     """Traits for a model id (also handles Bedrock/Vertex ids such as ``us.anthropic.claude-...``).
 
