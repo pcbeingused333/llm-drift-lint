@@ -166,19 +166,11 @@ _COMMENT = ("//", "#", "/*", "*", '"""', "'''")
 
 
 def _purpose_context(lines: list[str], first: int, last: int, name: str) -> str:
-    """The gate's name, its lines, and the comment block (or doc comment) right above it, also when
-    the gate sits a few lines into a function (``const isX = (m) => {`` / ``const id = ...``)."""
-    above, j, code, comments = [], first - 2, 0, 0
+    """The gate's name, its lines, and up to 8 lines right above it (its comment, the declaration
+    of the list it sits in, the function head), stopping at a blank line."""
+    above, j = [], first - 2
     while j >= 0 and len(above) < 8 and lines[j].strip():
-        text = lines[j].strip()
-        if text.startswith(_COMMENT):
-            above.append(text)
-            comments += 1
-        elif comments or code == 3:
-            break
-        else:
-            above.append(text)
-            code += 1
+        above.append(lines[j].strip())
         j -= 1
     return "\n".join([name, *reversed(above), *lines[first - 1 : last]])
 
@@ -192,7 +184,8 @@ BUDGET_REJECTERS = _trait_models(lambda t: t.rejects_budget_tokens)
 
 
 # LDL010 ------------------------------------------------------------------------------------------
-_TOOL_CALLS = re.compile(r"tool_calls|toolCalls|ToolCalls")
+_TOOL_CALLS = re.compile(r"delta\W{1,4}(?:tool_calls|toolCalls|ToolCalls)\b", re.IGNORECASE)
+_TOOLISH = re.compile(r"tool|call|\btc\b|\$tc\b|func", re.IGNORECASE)
 _DELTA = re.compile(r"delta", re.IGNORECASE)
 _INDEX_KEY = re.compile(
     r"\[\s*(?:\$?\w+(?:\.|->))+[iI]ndex\s*\]"  # calls[tc.index], $calls[$tc->index]
@@ -222,6 +215,8 @@ def iter_files(root: Path):
 
 
 def hunt_file(path: Path, text: str):
+    if path.suffix == ".rs":  # unit tests live in the same file, after #[cfg(test)]
+        text = re.split(r"^#\[cfg\(test\)\]", text, maxsplit=1, flags=re.MULTILINE)[0]
     lines = text.splitlines()
 
     # LDL007: a shutdown id on a line that reads like a default.
@@ -237,13 +232,24 @@ def hunt_file(path: Path, text: str):
     # LDL008 / LDL009: a Claude model gate for sampling / adaptive thinking that misses models.
     # A gate is skipped when another gate in the file for the same purpose covers every model it
     # misses (the old partial helper often stays around for another use after the fix).
+    # Gates a few lines apart (the cases of one switch, an if / else-if ladder) form a block, and
+    # a model that any gate of the block names counts as handled there.
     found: dict[str, list[tuple[int, str, list[str]]]] = {"LDL008": [], "LDL009": []}
     complete: dict[str, set[str]] = {"LDL008": set(), "LDL009": set()}
+    blocks: list[tuple[int, int, set[str]]] = []
     for first, last, name, items, mode in gates(lines, text):
         covers = _covers(items, mode)
         # A gate on the provider ("claude", "anthropic/") isn't a model gate.
-        if covers is None or not any(re.search(r"\d", i) for i in items if _FAMILY.search(i)):
+        if covers is None or not any(
+            re.search(r"\d|fable|mythos", i, re.IGNORECASE) for i in items if _FAMILY.search(i)
+        ):
             continue
+        named = {m for m in models.CLAUDE_IDS if covers(m)}
+        if blocks and first <= blocks[-1][1] + 12:
+            lo, _, union = blocks[-1]
+            blocks[-1] = (lo, last, union | named)
+        else:
+            blocks.append((first, last, named))
         ctx = _purpose_context(lines, first, last, name)
         for rule, word, rejecters, need in (
             ("LDL008", _SAMPLING_WORD, SAMPLING_REJECTERS, None),
@@ -258,14 +264,15 @@ def hunt_file(path: Path, text: str):
                 found[rule].append((first, f"{name or mode}: covers {','.join(covered)}", missing))
     for rule, hits in found.items():
         for first, note, missing in hits:
-            still = [m for m in missing if m not in complete[rule]]
+            block = next((u for lo, hi, u in blocks if lo <= first <= hi), set())
+            still = [m for m in missing if m not in complete[rule] and m not in block]
             if still:
                 yield rule, first, f"{note}; misses {','.join(still)}"
 
     # LDL010: a stream reducer keyed by tool_calls[].index with no missing-index handling.
     if _TOOL_CALLS.search(text) and _DELTA.search(text) and not _HANDLES_MISSING.search(text):
         for i, line in enumerate(lines, 1):
-            if _INDEX_KEY.search(line):
+            if _INDEX_KEY.search(line) and _TOOLISH.search(line):
                 yield "LDL010", i, line.strip()[:120]
                 break
 
