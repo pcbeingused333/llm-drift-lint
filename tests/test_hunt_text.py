@@ -100,3 +100,45 @@ for (const tc of chunk.choices[0].delta.tool_calls ?? []) {
 )
 def test_shutdown_defaults(line, expected):
     assert hunt(line + "\n") == expected
+
+
+HUNT_CORPUS = Path(__file__).parent / "hunt_corpus"
+# Real files at the commit before / after each fix (see hunt_corpus/README.md).
+HUNT_EXPECTED = {
+    "neurolink-gemini-index-pre": [("LDL010", "src/lib/providers/openaiChatCompletionsClient.ts", 932)],
+    "neurolink-gemini-index-post": [],
+    "praisonai-gemini-index-pre": [("LDL010", "src/praisonai-ts/src/llm/providers/openai.ts", 108)],
+    "praisonai-gemini-index-post": [],
+}
+
+
+@pytest.mark.parametrize("case", sorted(HUNT_EXPECTED))
+def test_hunt_corpus(case):
+    root = HUNT_CORPUS / case
+    found = []
+    for path in sorted(p for p in root.rglob("*") if p.is_file()):
+        text = path.read_text(encoding="utf-8")
+        found += [
+            (rule, path.relative_to(root).as_posix(), line)
+            for rule, line, _ in hunt_text.hunt_file(path, text)
+        ]
+    assert found == HUNT_EXPECTED[case]
+
+
+def test_hunt_corpus_is_listed():
+    dirs = {p.name for p in HUNT_CORPUS.iterdir() if p.is_dir() and p.name != "licenses"}
+    assert dirs == set(HUNT_EXPECTED)
+
+
+def test_drop_guard_without_fallback():
+    src = """
+for (const tc of delta.tool_calls) {
+  if (tc.index !== undefined) {
+    toolCalls[tc.index].function.arguments += tc.function.arguments;
+  }
+}
+"""
+    assert hunt(src) == [("LDL010", 3)]
+    assert (
+        hunt(src.replace("if (tc.index !== undefined) {", "const i = tc.index ?? toolCalls.length; {")) == []
+    )

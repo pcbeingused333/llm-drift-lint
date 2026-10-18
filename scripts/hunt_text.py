@@ -194,10 +194,19 @@ _INDEX_KEY = re.compile(
     r"|\*\w+\.Index\b"  # Go: *tc.Index
     r"|\[\s*int\(\s*\*?\w+\.Index\s*\)\s*\]"
 )
-_HANDLES_MISSING = re.compile(
-    r"index\s*(?:===?|!==?)\s*(?:undefined|null|nil)|index\s*\?\?|\.Index\s*(?:==|!=)\s*nil|"
-    r"index\s+is\s+(?:not\s+)?None|isset\(\s*\$\w+(?:\[['\"]index['\"]\]|->index)|"
-    r"typeof\s+\w+\.index|['\"]index['\"]\s+in\s+|has(?:Own)?Property\(\s*['\"]index|index\s*\|\|",
+# A fallback key when the index is missing: `tc.index ?? n`, `tc.index || n`, a ternary on the
+# index, `if tc.index is None: idx = ...`, `if tc.Index == nil {`, `"index" in tc`, hasOwnProperty.
+_FALLBACK = re.compile(
+    r"index\s*\?\?|index\s*\|\||index\s*(?:===?|!==?)\s*(?:undefined|null)\s*\?|"
+    r"index\s+is\s+None|\.Index\s*==\s*nil|['\"]index['\"]\s+in\s+|has(?:Own)?Property\(\s*['\"]index|"
+    r"typeof\s+\w+\.index\s*===?\s*['\"]undefined|=\s*\w+\.index\s+if\s+\w+\.index\s+is\s+not\s+None\s+else",
+    re.IGNORECASE,
+)
+# A guard that only skips deltas without an index (PraisonAI: `if (tc.index !== undefined) {`).
+_DROP_GUARD = re.compile(
+    r"if\s*\(?\s*(?:\$?\w+(?:\.|->|\?\.))+index\s*(?:!==?|!=)\s*(?:undefined|null|nil)\s*\)?\s*[{:]|"
+    r"if\s+\w+\.index\s+is\s+not\s+None\s*:|if\s*\(\s*isset\(\s*\$\w+(?:\[['\"]index['\"]\]|->index)\s*\)\s*\)|"
+    r"if\s+\w+\.Index\s*!=\s*nil\s*\{|if\s*\(\s*typeof\s+\w+\.index\s*===?\s*['\"]number['\"]\s*\)",
     re.IGNORECASE,
 )
 
@@ -269,12 +278,17 @@ def hunt_file(path: Path, text: str):
             if still:
                 yield rule, first, f"{note}; misses {','.join(still)}"
 
-    # LDL010: a stream reducer keyed by tool_calls[].index with no missing-index handling.
-    if _TOOL_CALLS.search(text) and _DELTA.search(text) and not _HANDLES_MISSING.search(text):
-        for i, line in enumerate(lines, 1):
-            if _INDEX_KEY.search(line) and _TOOLISH.search(line):
-                yield "LDL010", i, line.strip()[:120]
-                break
+    # LDL010: a stream reducer keyed by tool_calls[].index with no fallback for a missing index:
+    # either no handling at all, or a guard that skips the delta (every Gemini call is dropped).
+    if _TOOL_CALLS.search(text) and _DELTA.search(text) and not _FALLBACK.search(text):
+        guard = next((i for i, line in enumerate(lines, 1) if _DROP_GUARD.search(line)), None)
+        if guard is not None:
+            yield "LDL010", guard, "drops deltas without index: " + lines[guard - 1].strip()[:100]
+        else:
+            for i, line in enumerate(lines, 1):
+                if _INDEX_KEY.search(line) and _TOOLISH.search(line):
+                    yield "LDL010", i, line.strip()[:120]
+                    break
 
 
 def _near(lines: list[str], lineno: int, rx: re.Pattern, span: int) -> bool:

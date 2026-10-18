@@ -19,7 +19,7 @@ EXPECTED = json.loads((CORPUS / "expected.json").read_text(encoding="utf-8"))
 CASES = {case["id"]: case for case in EXPECTED["cases"]}
 RULES = all_rules()
 REGISTERED = {rule.id for rule in RULES}
-PLANNED = {f"LDL00{n}" for n in range(1, 7)}
+PLANNED = {f"LDL{n:03d}" for n in range(1, 11)}
 
 
 @functools.cache

@@ -19,6 +19,7 @@ the files a fix touched are included, plus the `pyproject.toml` that declares th
 | `chatlas-448-pre` / `-post` | [posit-dev/chatlas#448](https://github.com/posit-dev/chatlas/pull/448) | `1746ec6` / `a06b46c` | MIT |
 | `ha-llmvision-747-pre` / `-post` | [valentinfrlch/ha-llmvision#747](https://github.com/valentinfrlch/ha-llmvision/pull/747) | `68ecf5a` / `429dab1` | Apache-2.0 |
 | `livekit-7726-issue` | [livekit/agents#7726](https://github.com/livekit/agents/issues/7726) (an open issue, cited by langchainrb#1073) | `4814a8f` | Apache-2.0 |
+| `nanobot-gemini-index-pre` / `-post` | HKUDS/nanobot `_parse_chunks` ([source](https://github.com/HKUDS/nanobot/blob/df6158ec18918f9d4d08f651a3acf14007dbb687/nanobot/providers/openai_compat_provider.py#L1565-L1652)); the post file is a local fix, not published yet | `df6158e` / `e29d54d` | MIT |
 
 The files remain under their original licenses, copied in `licenses/` (Phoenix's
 `IP_NOTICE` included). They are test data only: `ruff.toml` here excludes them

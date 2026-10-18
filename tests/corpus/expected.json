@@ -412,6 +412,39 @@
           "why": "max_tokens defaults to 1024 through a request dict (line 183) and model is self._opts.model (default claude-sonnet-4-6, which doesn't think by default); the issue measured empty replies at 1024 on Sonnet 5 and Haiku 5.5."
         }
       ]
+    },
+    {
+      "id": "nanobot-gemini-index-pre",
+      "kind": "pre-fix",
+      "prs": [
+        "https://github.com/HKUDS/nanobot/blob/df6158ec18918f9d4d08f651a3acf14007dbb687/nanobot/providers/openai_compat_provider.py#L1565-L1652"
+      ],
+      "repo": "HKUDS/nanobot",
+      "license": "MIT",
+      "commit": "df6158ec18918f9d4d08f651a3acf14007dbb687",
+      "notes": "Upstream main before the local fix e29d54d (not published yet). _parse_chunks falls back to the delta's position in the chunk, which is 0 for every Gemini chunk.",
+      "findings": [
+        {
+          "rule": "LDL010",
+          "path": "nanobot/providers/openai_compat_provider.py",
+          "line": 1646,
+          "end_line": 1652,
+          "status": "required",
+          "why": "_accum_tc(tc, idx) falls back to the position from enumerate(delta.tool_calls), 0 in every Gemini chunk, so parallel calls merge into one"
+        }
+      ]
+    },
+    {
+      "id": "nanobot-gemini-index-post",
+      "kind": "post-fix",
+      "prs": [
+        "https://github.com/HKUDS/nanobot/blob/df6158ec18918f9d4d08f651a3acf14007dbb687/nanobot/providers/openai_compat_provider.py#L1565-L1652"
+      ],
+      "repo": "HKUDS/nanobot",
+      "license": "MIT",
+      "commit": "e29d54df1572a85fb492cfe3cf0fa58100218a18",
+      "notes": "Local fix, not published yet: an unindexed delta gets its own key from _unindexed_key().",
+      "findings": []
     }
   ]
 }
