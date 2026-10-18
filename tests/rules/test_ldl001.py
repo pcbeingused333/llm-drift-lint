@@ -137,7 +137,7 @@ def test_non_default_models_accept_default_and_unknown_values(lint):
         client.messages.create(model="claude-sonnet-5-5", max_tokens=8, temperature=1.0)
         client.messages.create(model="claude-sonnet-5-5", max_tokens=8, temperature=1)
         client.messages.create(model="claude-sonnet-5-5", max_tokens=8, temperature=user_temperature)
-        client.messages.create(model="claude-sonnet-5-5", max_tokens=8, top_k=40)
+        client.messages.create(model="claude-sonnet-5-5", max_tokens=8, top_k=user_top_k)
         """,
     )
 
@@ -166,3 +166,17 @@ def test_other_apis_are_silent(lint):
         llm.invoke("hi", model="claude-opus-5-5", temperature=0.0)
         """,
     )
+
+
+def test_literal_top_k_on_non_default_models(lint):
+    # The thinking docs: non-default `top_k` returns a 400, and no default is documented, so any
+    # literal top_k counts (docs/rules-evidence.md).
+    findings = lint(
+        Rule,
+        """
+        client.messages.create(model="claude-sonnet-5-5", max_tokens=8, top_k=40)
+        client.messages.create(model="claude-sonnet-4-6", max_tokens=8, top_k=40)
+        """,
+    )
+    assert [f.line for f in findings] == [2]
+    assert "documents no default" in findings[0].message

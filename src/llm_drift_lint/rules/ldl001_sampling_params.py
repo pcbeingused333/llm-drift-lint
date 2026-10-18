@@ -37,20 +37,24 @@ class AnthropicSamplingParams(Rule):
                         message = f"`{param}` is sent to {model}, which rejects it with any value (400)"
                     elif traits.rejects_sampling == "non_default":
                         # Only a literal other than the model's default is certain to fail. top_k has no
-                        # documented default to compare against, so it is left out.
+                        # documented default, so any literal top_k counts as non-default
+                        # (docs/rules-evidence.md, "SAMPLING_DEFAULTS").
                         default = models.SAMPLING_DEFAULTS.get(param)
                         value = ctx.literal(node)
-                        if (
-                            default is None
-                            or isinstance(value, bool)
-                            or not isinstance(value, (int, float))
-                            or value == default
-                        ):
+                        if isinstance(value, bool) or not isinstance(value, (int, float)):
                             continue
-                        message = (
-                            f"`{param}={value}` is sent to {model}, which rejects any value "
-                            f"other than the default {default} (400)"
-                        )
+                        if default is None:
+                            message = (
+                                f"`{param}={value}` is sent to {model}, which rejects non-default "
+                                f"`{param}` and documents no default for it (400)"
+                            )
+                        elif value == default:
+                            continue
+                        else:
+                            message = (
+                                f"`{param}={value}` is sent to {model}, which rejects any value "
+                                f"other than the default {default} (400)"
+                            )
                     else:
                         continue
                     flagged.add(param)
