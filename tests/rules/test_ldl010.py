@@ -151,3 +151,72 @@ def test_helper_with_a_real_fallback_is_silent(lint):
                     _accum_tc(tc)
         """,
     )
+
+
+def test_result_of_a_call_taking_the_index_is_not_the_index(lint):
+    # pydantic-ai: the parts manager starts a new part when vendor_part_id is None and a tool name is
+    # given, so Gemini works; `maybe_event is not None` is not a guard on the index.
+    findings = lint(
+        Rule,
+        """
+        def map_deltas(self, choice):
+            for dtc in choice.delta.tool_calls or []:
+                maybe_event = self._parts_manager.handle_tool_call_delta(
+                    vendor_part_id=dtc.index,
+                    tool_name=dtc.function.name,
+                    args=dtc.function.arguments,
+                )
+                if maybe_event is not None:
+                    yield maybe_event
+        """,
+    )
+    assert findings == []
+
+
+def test_isinstance_checks_count_as_none_checks(lint):
+    # ag2 mistral_client: a missing index gets a fresh slot.
+    assert (
+        lint(
+            Rule,
+            """
+            def collect(chunks, accs):
+                for chunk in chunks:
+                    for position, tc in enumerate(chunk.choices[0].delta.tool_calls or []):
+                        index = tc.index if isinstance(tc.index, int) else len(accs) + position
+                        acc = accs.setdefault(index, {"arguments": ""})
+                        acc["arguments"] += tc.function.arguments or ""
+            """,
+        )
+        == []
+    )
+    findings = lint(
+        Rule,
+        """
+        def collect(chunks, accs):
+            for chunk in chunks:
+                for tc in chunk.choices[0].delta.tool_calls or []:
+                    if not isinstance(tc.index, int):
+                        continue
+                    accs[tc.index] = tc
+        """,
+    )
+    assert [f.line for f in findings] == [4] and "skipped" in findings[0].message
+
+
+def test_early_return_of_a_sent_index_is_not_a_drop(lint):
+    # opik mistral aggregator: a missing index falls through to a fresh key.
+    findings = lint(
+        Rule,
+        """
+        def key(tool_call, calls):
+            if isinstance(tool_call.index, int):
+                return tool_call.index
+            return min((k for k in calls if k < 0), default=0) - 1
+
+        def collect(chunks, calls):
+            for chunk in chunks:
+                for tool_call in chunk.choices[0].delta.tool_calls:
+                    calls.setdefault(key(tool_call, calls), {}).update(tool_call)
+        """,
+    )
+    assert findings == []

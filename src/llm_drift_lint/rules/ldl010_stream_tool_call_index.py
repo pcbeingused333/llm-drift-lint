@@ -138,8 +138,17 @@ class _Scope:
         for node in self._walk():
             if isinstance(node, (ast.Assign, ast.AnnAssign)) and node.value is not None:
                 targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-                if self._mentions_index(node.value):
+                if self._binds_index(node.value):
                     self.names |= {t.id for t in targets if isinstance(t, ast.Name)}
+
+    def _binds_index(self, value: ast.expr) -> bool:
+        """``idx = tc.index``, ``idx = tc.index or i``, ``idx = tc.index if ... else i``; not a call that
+        merely takes the index as an argument (``event = handle(part_id=tc.index)``)."""
+        if isinstance(value, ast.IfExp):
+            return self._binds_index(value.body) or self._binds_index(value.orelse)
+        if isinstance(value, ast.BoolOp):
+            return self._binds_index(value.values[0])
+        return self._is_index_expr(value)
 
     def _mentions_index(self, expr: ast.AST) -> bool:
         return any(self._is_index_expr(n) for n in ast.walk(expr))
@@ -199,7 +208,8 @@ class _Scope:
             if not isinstance(node, ast.If):
                 continue
             cmp = self._none_compare(node.test)
-            if cmp == "is_not" and not node.orelse:
+            # ``if <index> is not None: return <index>`` hands a missing index to the code below it
+            if cmp == "is_not" and not node.orelse and not isinstance(node.body[-1], ast.Return):
                 return True
             if cmp == "is" and node.body and isinstance(node.body[0], (ast.Continue, ast.Return)):
                 return True
@@ -207,7 +217,17 @@ class _Scope:
 
     def _none_compare(self, test: ast.expr) -> str | None:
         """Returns "is" for ``<index> is None`` (or ``== None``), "is_not" for the negation and for
-        ``hasattr(tc, "index")`` / ``"index" in tc``, else None."""
+        ``hasattr(tc, "index")`` / ``"index" in tc`` / ``isinstance(<index>, int)``, else None."""
+        if isinstance(test, ast.UnaryOp) and isinstance(test.op, ast.Not):
+            return {"is": "is_not", "is_not": "is"}.get(self._none_compare(test.operand) or "")
+        if (
+            isinstance(test, ast.Call)
+            and isinstance(test.func, ast.Name)
+            and test.func.id == "isinstance"
+            and len(test.args) == 2
+            and self._is_index_expr(test.args[0])
+        ):
+            return "is_not"
         if isinstance(test, ast.BoolOp) and isinstance(test.op, ast.And):
             return "is_not" if any(self._none_compare(v) == "is_not" for v in test.values) else None
         if isinstance(test, ast.Compare) and len(test.ops) == 1:
