@@ -46,7 +46,10 @@ llm-drift-lint src/ --format json         # machine-readable
 llm-drift-lint src/ --select LDL001,LDL004
 llm-drift-lint src/ --ignore LDL006
 llm-drift-lint src/ --include-tests       # test directories are skipped by default
+llm-drift-lint src/ --fail-on error       # exit 0 when there are only warnings
 ```
+
+Findings are errors, except LDL007 on a model whose shutdown date is still ahead, which is a warning until that day. Warnings fail the run too unless you pass `--fail-on error`.
 
 Silence one line:
 

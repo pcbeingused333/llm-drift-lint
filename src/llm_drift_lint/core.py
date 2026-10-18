@@ -20,6 +20,7 @@ class Finding:
     message: str  # what is wrong, one sentence
     hint: str = ""  # how to fix it, one sentence
     references: tuple[str, ...] = ()  # docs / real PRs that motivated the rule
+    severity: str = "error"  # "error": fails now; "warning": will fail later (a shutdown date ahead)
 
 
 @dataclass
@@ -285,10 +286,17 @@ class Rule:
     def check(self, ctx: FileContext) -> Iterator[Finding]:
         raise NotImplementedError
 
-    def finding(self, site: CallSite | ast.AST, ctx: FileContext, message: str, hint: str = "") -> Finding:
+    def finding(
+        self,
+        site: CallSite | ast.AST,
+        ctx: FileContext,
+        message: str,
+        hint: str = "",
+        severity: str = "error",
+    ) -> Finding:
         line = site.line if isinstance(site, CallSite) else getattr(site, "lineno", 1)
         col = site.col if isinstance(site, CallSite) else getattr(site, "col_offset", 0)
-        return Finding(self.id, ctx.path, line, col, message, hint, self.references)
+        return Finding(self.id, ctx.path, line, col, message, hint, self.references, severity)
 
 
 _REGISTRY: dict[str, type[Rule]] = {}

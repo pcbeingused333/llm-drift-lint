@@ -94,9 +94,10 @@ def test_past_and_upcoming_shutdowns_are_worded_apart(lint):
     assert [f.line for f in findings] == [2, 3]
     assert "shut it down on 2026-09-28, so requests with it fail" in findings[0].message
     assert "shuts it down on 2027-01-14" in findings[1].message and "gpt-6-luna" in findings[1].hint
+    assert [f.severity for f in findings] == ["error", "warning"]
 
 
 def test_shutdown_day_counts_as_past(lint, monkeypatch):
     monkeypatch.setattr(ldl007_openai_shutdown_default, "today", lambda: datetime.date(2026, 10, 23))
     [finding] = lint(Rule, 'DEFAULT_MODEL = "gpt-4"\n')
-    assert "shut it down on 2026-10-23" in finding.message
+    assert "shut it down on 2026-10-23" in finding.message and finding.severity == "error"

@@ -7,7 +7,7 @@ import pytest
 from llm_drift_lint import core
 from llm_drift_lint.cli import lint_source, main
 from llm_drift_lint.core import FileContext, Finding, Rule
-from llm_drift_lint.reporting import format_github
+from llm_drift_lint.reporting import format_github, format_text
 
 
 class _ZeroTemperature(Rule):
@@ -68,12 +68,28 @@ def test_json_format(tmp_path, capsys):
     main([str(tmp_path), "--format", "json"])
     (item,) = json.loads(capsys.readouterr().out)
     assert item["rule"] == "LDL900" and item["line"] == 1 and item["column"] == 1
+    assert item["severity"] == "error"
     assert item["references"] == ["https://example.com/pr/1"]
 
 
 def test_github_format_escapes():
     f = Finding("LDL900", Path("a,b.py"), 3, 0, "50% off:\nnext", "hint")
-    assert format_github([f]) == "::warning file=a%2Cb.py,line=3,col=1,title=LDL900::50%25 off:%0Anext hint"
+    assert format_github([f]) == "::error file=a%2Cb.py,line=3,col=1,title=LDL900::50%25 off:%0Anext hint"
+    w = Finding("LDL900", Path("a.py"), 1, 0, "m", severity="warning")
+    assert format_github([w]).startswith("::warning file=a.py,")
+    assert format_text([w]) == "a.py:1:1: LDL900 (warning) m"
+
+
+def test_fail_on_error_ignores_warnings(tmp_path, monkeypatch):
+    write(tmp_path, "pkg/mod.py", BAD)
+    real = _ZeroTemperature.finding
+
+    def as_warning(self, *args, **kwargs):
+        return real(self, *args, **{**kwargs, "severity": "warning"})
+
+    monkeypatch.setattr(_ZeroTemperature, "finding", as_warning)
+    assert main([str(tmp_path)]) == 1
+    assert main([str(tmp_path), "--fail-on", "error"]) == 0
 
 
 def test_unknown_rule_id_is_an_error(tmp_path):

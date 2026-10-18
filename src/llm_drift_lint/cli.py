@@ -62,6 +62,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--list-rules", action="store_true", help="print the rules and exit")
     parser.add_argument("--include-tests", action="store_true", help="also scan test directories")
     parser.add_argument("--exit-zero", action="store_true", help="exit 0 even when there are findings")
+    parser.add_argument(
+        "--fail-on",
+        choices=("warning", "error"),
+        default="warning",
+        help="lowest severity that makes the exit code 1 (default: warning, so any finding fails)",
+    )
     args = parser.parse_args(argv)
 
     rules = all_rules()
@@ -83,7 +89,8 @@ def main(argv: list[str] | None = None) -> int:
         print(output)
     if args.format == "text":
         print(f"{len(findings)} finding(s)", file=sys.stderr)
-    return 0 if args.exit_zero or not findings else 1
+    failing = [f for f in findings if args.fail_on == "warning" or f.severity == "error"]
+    return 0 if args.exit_zero or not failing else 1
 
 
 if __name__ == "__main__":

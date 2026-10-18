@@ -42,15 +42,16 @@ class OpenAIShutdownDefault(Rule):
                 continue
             seen.add(id(node))
             if datetime.date.fromisoformat(shutdown.date) <= today():
-                when = f"OpenAI shut it down on {shutdown.date}, so requests with it fail"
+                when, severity = f"OpenAI shut it down on {shutdown.date}, so requests with it fail", "error"
             else:
-                when = f"OpenAI shuts it down on {shutdown.date}"
+                when, severity = f"OpenAI shuts it down on {shutdown.date}", "warning"
             yield self.finding(
                 node,
                 ctx,
                 f"`{model}` is the {how}, and {when}",
                 f"Use {shutdown.replacement} (OpenAI's replacement); check which parameters it accepts "
                 "before swapping (sampling, max_completion_tokens).",
+                severity,
             )
 
 

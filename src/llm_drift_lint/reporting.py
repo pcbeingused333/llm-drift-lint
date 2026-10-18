@@ -29,7 +29,8 @@ def suppressed(finding: Finding, lines: list[str]) -> bool:
 def format_text(findings: Iterable[Finding]) -> str:
     out = []
     for f in findings:
-        out.append(f"{f.path}:{f.line}:{f.col + 1}: {f.rule_id} {f.message}")
+        level = " (warning)" if f.severity == "warning" else ""
+        out.append(f"{f.path}:{f.line}:{f.col + 1}: {f.rule_id}{level} {f.message}")
         if f.hint:
             out.append(f"    hint: {f.hint}")
         if f.references:
@@ -42,6 +43,7 @@ def format_json(findings: Iterable[Finding]) -> str:
         [
             {
                 "rule": f.rule_id,
+                "severity": f.severity,
                 "path": str(f.path),
                 "line": f.line,
                 "column": f.col + 1,
@@ -63,12 +65,13 @@ def _escape_gh(value: str, prop: bool = False) -> str:
 
 
 def format_github(findings: Iterable[Finding]) -> str:
-    """GitHub Actions workflow commands, which show up as annotations on the PR diff."""
+    """GitHub Actions workflow commands, which show up as annotations on the PR diff
+    (``::error`` or ``::warning``, after the finding's severity)."""
     out = []
     for f in findings:
         message = f.message + (f" {f.hint}" if f.hint else "")
         out.append(
-            f"::warning file={_escape_gh(str(f.path), True)},line={f.line},col={f.col + 1},"
+            f"::{f.severity} file={_escape_gh(str(f.path), True)},line={f.line},col={f.col + 1},"
             f"title={_escape_gh(f.rule_id, True)}::{_escape_gh(message)}"
         )
     return "\n".join(out)
