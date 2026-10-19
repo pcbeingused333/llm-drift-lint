@@ -57,7 +57,7 @@ llm-drift-lint src/ --include-tests       # test directories are skipped by defa
 llm-drift-lint src/ --fail-on error       # exit 0 when there are only warnings
 ```
 
-Findings are errors, except LDL007 on a model whose shutdown date is still ahead, which is a warning until that day. Warnings fail the run too unless you pass `--fail-on error`.
+Findings are errors, with two exceptions that are warnings: LDL007 on a model whose shutdown date is still ahead (until that day), and LDL012 on a Gemini 3 temperature, which Google says degrades output rather than failing the request. Warnings fail the run too unless you pass `--fail-on error`.
 
 Silence one line:
 

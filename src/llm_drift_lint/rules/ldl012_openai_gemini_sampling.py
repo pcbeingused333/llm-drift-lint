@@ -127,4 +127,5 @@ class OpenAIGeminiSampling(Rule):
             f"`temperature={value:g}` is sent to {model}; Google recommends the default 1.0 for Gemini 3 "
             "models and warns that lower values can cause looping or degraded output",
             "Leave `temperature` unset for Gemini 3 models.",
+            "warning",  # Google documents degraded output, not a failed request
         )

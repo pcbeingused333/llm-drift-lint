@@ -19,6 +19,7 @@ def test_openai_reasoning_models_reject_non_default_sampling(lint):
     assert 'reasoning effort "none"' in findings[0].hint
     assert "`top_p=0.9`" in findings[1].message
     assert "none" not in findings[2].hint
+    assert {f.severity for f in findings} == {"error"}
 
 
 def test_defaults_older_models_and_unknown_values_are_silent(lint):
@@ -72,6 +73,7 @@ def test_gemini_3_low_temperature(lint):
     )
     assert [f.line for f in findings] == [6, 12, 14]
     assert "looping" in findings[0].message and "400" not in findings[0].message
+    assert {f.severity for f in findings} == {"warning"}
 
 
 def test_gemini_default_and_older_models_are_silent(lint):
