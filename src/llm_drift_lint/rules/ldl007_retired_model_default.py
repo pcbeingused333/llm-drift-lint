@@ -1,14 +1,18 @@
-"""LDL007: an OpenAI model that the API is shutting down, used as a default model."""
+"""LDL007: a model that its provider has retired or will retire, used as a default model.
+
+Covers OpenAI, the Claude API, the Gemini API and Vertex AI's own Gemini schedule (models.retirement)."""
 
 from __future__ import annotations
 
 import ast
+import dataclasses
 import datetime
 import re
 from collections.abc import Iterator
 
 from .. import models
 from ..core import FileContext, Finding, Rule, register
+from ._common import imports
 
 # Only defaults count: a parameter or field default, a ``*MODEL*`` constant, an env-var or CLI
 # fallback. A model passed at one call site (examples, tests, token counters) isn't a default.
@@ -25,11 +29,16 @@ def _is_model_name(name: str | None) -> bool:
 
 
 @register
-class OpenAIShutdownDefault(Rule):
+class RetiredModelDefault(Rule):
     id = "LDL007"
-    name = "openai-shutdown-default"
-    summary = "default model is an OpenAI model that the API has shut down or will shut down (models.OPENAI_SHUTDOWNS)"
-    references = (models.OPENAI_DEPRECATIONS,)
+    name = "retired-model-default"
+    summary = "default model is one its provider has retired or will retire (OpenAI, Claude API, Gemini API, Vertex AI)"
+    references = (
+        models.OPENAI_DEPRECATIONS,
+        models.DEPRECATIONS,
+        models.GEMINI_DEPRECATIONS,
+        models.VERTEX_MODEL_VERSIONS,
+    )
 
     def check(self, ctx: FileContext) -> Iterator[Finding]:
         if _TEST_FILE.search(ctx.path.name):
@@ -37,22 +46,27 @@ class OpenAIShutdownDefault(Rule):
         seen: set[int] = set()
         for node, how in _defaults(ctx):
             model = node.value if isinstance(node, ast.Constant) else None
-            shutdown = models.openai_shutdown(model) if isinstance(model, str) else None
-            if shutdown is None or id(node) in seen or _azure(ctx, node):
+            if not isinstance(model, str) or id(node) in seen or _mentions(ctx, node, "azure"):
+                continue
+            shutdown = models.retirement(model, vertex=_vertex(ctx, node))
+            if shutdown is None:
                 continue
             seen.add(id(node))
+            who = shutdown.provider
             if datetime.date.fromisoformat(shutdown.date) <= today():
-                when, severity = f"OpenAI shut it down on {shutdown.date}, so requests with it fail", "error"
+                when, severity = f"{who} shut it down on {shutdown.date}, so requests with it fail", "error"
             else:
-                when, severity = f"OpenAI shuts it down on {shutdown.date}", "warning"
-            yield self.finding(
+                when, severity = f"{who} shuts it down on {shutdown.date}", "warning"
+            finding = self.finding(
                 node,
                 ctx,
                 f"`{model}` is the {how}, and {when}",
-                f"Use {shutdown.replacement} (OpenAI's replacement); check which parameters it accepts "
-                "before swapping (sampling, max_completion_tokens).",
+                f"Use {shutdown.replacement} ({who}'s replacement); check which parameters it accepts "
+                "before swapping (sampling, token limits).",
                 severity,
             )
+            # Cite the page this date comes from, not every provider's page.
+            yield dataclasses.replace(finding, references=(shutdown.source,))
 
 
 def _defaults(ctx: FileContext) -> Iterator[tuple[ast.expr, str]]:
@@ -123,13 +137,22 @@ def _callee(call: ast.Call) -> str:
     return ".".join(reversed(parts))
 
 
-def _azure(ctx: FileContext, node: ast.AST) -> bool:
-    """Azure OpenAI deployments have their own retirement dates; skip code that targets Azure."""
+def _vertex(ctx: FileContext, node: ast.AST) -> bool:
+    """Code that targets Vertex AI: the file imports its SDK, or the enclosing call, function or class
+    mentions Vertex (``genai.Client(vertexai=True)``, ``ChatVertexAI``, a ``vertex_ai/`` prefix)."""
+    return (
+        imports(ctx, "vertexai") or imports(ctx, "google.cloud.aiplatform") or _mentions(ctx, node, "vertex")
+    )
+
+
+def _mentions(ctx: FileContext, node: ast.AST, word: str) -> bool:
+    """True when the enclosing call, function or class mentions ``word``. Azure OpenAI deployments and
+    Vertex AI have their own retirement dates, so the rule needs to know when code targets them."""
     cur = ctx.parent(node)
     while cur is not None:
         if isinstance(cur, (ast.Call, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             segment = ast.get_source_segment(ctx.source, cur) or ""
-            if "azure" in segment.lower():
+            if word in segment.lower():
                 return True
             if isinstance(cur, ast.ClassDef):
                 break

@@ -157,16 +157,22 @@ CLAUDE_IDS: tuple[str, ...] = (
 )
 
 OPENAI_DEPRECATIONS = "https://developers.openai.com/api/docs/deprecations"
+GEMINI_DEPRECATIONS = "https://ai.google.dev/gemini-api/docs/deprecations"
+VERTEX_MODEL_VERSIONS = "https://docs.cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions"
 
 
 @dataclass(frozen=True)
 class Shutdown:
     date: str  # ISO date the API stops serving the model
-    replacement: str  # the replacement OpenAI recommends
+    replacement: str  # the replacement the provider recommends
+    provider: str = "OpenAI"  # who stops serving it, for the message
+    source: str = OPENAI_DEPRECATIONS
 
 
-def _shutdowns(date: str, replacements: dict[str, str]) -> dict[str, Shutdown]:
-    return {model: Shutdown(date, repl) for model, repl in replacements.items()}
+def _shutdowns(
+    date: str, replacements: dict[str, str], provider: str = "OpenAI", source: str = OPENAI_DEPRECATIONS
+) -> dict[str, Shutdown]:
+    return {model: Shutdown(date, repl, provider, source) for model, repl in replacements.items()}
 
 
 _TERRA, _SOL, _LUNA = "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna"
@@ -215,6 +221,125 @@ OPENAI_SHUTDOWNS: dict[str, Shutdown] = {
     **_shutdowns("2026-03-26", {"gpt-4-0314": _SOL, "gpt-4-0125-preview": _SOL}),
 }
 
+_SONNET_55, _OPUS_48, _HAIKU_45 = "claude-sonnet-5-5", "claude-opus-4-8", "claude-haiku-4-5-20251001"
+
+# Claude API retirements (DEPRECATIONS, "Deprecation history", read 2026-10-19). The page names
+# snapshots; the aliases that pointed at them are listed too, since an alias of a retired snapshot
+# has nothing left to serve. Bedrock and Vertex set their own dates, so only Claude API spellings
+# (plus an ``anthropic/`` router prefix) are keys here.
+CLAUDE_RETIREMENTS: dict[str, Shutdown] = {
+    # Announced 2026-09-30.
+    **_shutdowns(
+        "2026-11-30",
+        {"claude-sonnet-4-5-20250929": _SONNET_55, "claude-sonnet-4-5": _SONNET_55},
+        "Anthropic",
+        DEPRECATIONS,
+    ),
+    **_shutdowns(
+        "2026-08-05",
+        {"claude-opus-4-1-20250805": _OPUS_48, "claude-opus-4-1": _OPUS_48},
+        "Anthropic",
+        DEPRECATIONS,
+    ),
+    **_shutdowns(
+        "2026-06-15",
+        {
+            "claude-sonnet-4-20250514": _SONNET_55,
+            "claude-sonnet-4-0": _SONNET_55,
+            "claude-opus-4-20250514": _OPUS_48,
+            "claude-opus-4-0": _OPUS_48,
+        },
+        "Anthropic",
+        DEPRECATIONS,
+    ),
+    **_shutdowns("2026-04-20", {"claude-3-haiku-20240307": _HAIKU_45}, "Anthropic", DEPRECATIONS),
+    **_shutdowns(
+        "2026-02-19",
+        {
+            "claude-3-5-haiku-20241022": _HAIKU_45,
+            "claude-3-5-haiku-latest": _HAIKU_45,
+            "claude-3-7-sonnet-20250219": _SONNET_55,
+            "claude-3-7-sonnet-latest": _SONNET_55,
+        },
+        "Anthropic",
+        DEPRECATIONS,
+    ),
+    **_shutdowns(
+        "2026-01-05",
+        {"claude-3-opus-20240229": _OPUS_48, "claude-3-opus-latest": _OPUS_48},
+        "Anthropic",
+        DEPRECATIONS,
+    ),
+    **_shutdowns(
+        "2025-10-28",
+        {
+            "claude-3-5-sonnet-20240620": _SONNET_55,
+            "claude-3-5-sonnet-20241022": _SONNET_55,
+            "claude-3-5-sonnet-latest": _SONNET_55,
+        },
+        "Anthropic",
+        DEPRECATIONS,
+    ),
+    **_shutdowns(
+        "2025-07-21",
+        {"claude-2.0": _OPUS_48, "claude-2.1": _OPUS_48, "claude-3-sonnet-20240229": _SONNET_55},
+        "Anthropic",
+        DEPRECATIONS,
+    ),
+}
+
+# Gemini API (GEMINI_DEPRECATIONS, checked 2026-10-18/19). gemini-2.5-* answers 404 "no longer
+# available to new users" there but has no shutdown date, so it isn't listed for the Gemini API.
+GEMINI_SHUTDOWNS: dict[str, Shutdown] = {
+    **_shutdowns(
+        "2026-06-01",
+        {
+            "gemini-2.0-flash": "gemini-3.6-flash",
+            "gemini-2.0-flash-001": "gemini-3.6-flash",
+            "gemini-2.0-flash-lite": "gemini-3.1-flash-lite",
+            "gemini-2.0-flash-lite-001": "gemini-3.1-flash-lite",
+        },
+        "Google",
+        GEMINI_DEPRECATIONS,
+    ),
+    **_shutdowns(
+        "2026-08-17",
+        {
+            "imagen-4.0-generate-001": "gemini-nano-banana-2.1",
+            "imagen-4.0-ultra-generate-001": "gemini-nano-banana-2.1",
+            "imagen-4.0-fast-generate-001": "gemini-nano-banana-2.1",
+        },
+        "Google",
+        GEMINI_DEPRECATIONS,
+    ),
+    # "Earliest shutdown" date on the page.
+    **_shutdowns(
+        "2027-03-15",
+        {"gemini-2.5-flash-image": "gemini-3.1-flash-lite-image"},
+        "Google",
+        GEMINI_DEPRECATIONS,
+    ),
+}
+
+# Vertex AI retires Gemini models on its own schedule (VERTEX_MODEL_VERSIONS, checked 2026-10-19).
+# These apply only to code that targets Vertex: gemini-3.6-flash stays stable on the Gemini API.
+VERTEX_GEMINI_RETIREMENTS: dict[str, Shutdown] = {
+    **_shutdowns(
+        "2026-10-20",
+        {
+            "gemini-2.5-pro": "gemini-3.8-flash",
+            "gemini-2.5-flash": "gemini-3.8-flash",
+            "gemini-2.5-flash-lite": "gemini-3.8-flash (or gemini-3.1-flash-lite)",
+        },
+        "Vertex AI",
+        VERTEX_MODEL_VERSIONS,
+    ),
+    **_shutdowns("2026-11-19", {"gemini-3.6-flash": "gemini-3.8-flash"}, "Vertex AI", VERTEX_MODEL_VERSIONS),
+}
+
+_ROUTER_PREFIXES = ("openai/", "anthropic/", "gemini/", "google/", "models/")
+_VERTEX_PREFIXES = ("vertex_ai/", "vertexai/", "google-vertex/")
+
 
 def openai_shutdown(model: str | None) -> Shutdown | None:
     """The shutdown for an OpenAI model id, also behind an ``openai/`` router prefix. A fine-tune
@@ -229,6 +354,80 @@ def openai_shutdown(model: str | None) -> Shutdown | None:
             return Shutdown("2026-10-23", _TERRA)
         model = base
     return OPENAI_SHUTDOWNS.get(model)
+
+
+def retirement(model: str | None, vertex: bool = False) -> Shutdown | None:
+    """The shutdown for a model id from any provider: OpenAI, Claude API or Gemini API. With
+    ``vertex`` (the code targets Vertex AI), or a ``vertex_ai/`` prefix on the id, Vertex's own Gemini
+    dates apply instead of the Gemini API's. None when the model isn't listed."""
+    if not model:
+        return None
+    lowered = model.lower()
+    if lowered.startswith(_VERTEX_PREFIXES):
+        vertex, lowered = True, lowered.split("/", 1)[1]
+    if (found := openai_shutdown(lowered)) is not None:
+        return found
+    for prefix in _ROUTER_PREFIXES:
+        lowered = lowered.removeprefix(prefix)
+    if vertex:
+        # Vertex also sets its own dates for the Claude and image models it serves.
+        return VERTEX_GEMINI_RETIREMENTS.get(lowered)
+    return CLAUDE_RETIREMENTS.get(lowered) or GEMINI_SHUTDOWNS.get(lowered)
+
+
+GEMINI_3_GUIDE = "https://ai.google.dev/gemini-api/docs/gemini-3"
+KHOJ_1377 = "https://github.com/khoj-ai/khoj/issues/1377"
+OPENLESS_888 = "https://github.com/Open-Less/openless/pull/888"
+
+
+@dataclass(frozen=True)
+class FixedSampling:
+    """An OpenAI model that answers non-default ``temperature`` / ``top_p`` with a 400 ("Only the
+    default (1) value is supported")."""
+
+    pattern: str  # regex over the lowercased id, after an ``openai/`` prefix is removed
+    # True when the request may send sampling values with reasoning effort "none" (newer gpt-5.x);
+    # the rule then stays silent unless the effort is known to be something else.
+    allowed_without_reasoning: bool
+    sources: tuple[str, ...]
+
+
+# Defaults OpenAI accepts on these models. Anything else is a 400.
+OPENAI_SAMPLING_DEFAULTS: dict[str, float] = {"temperature": 1.0, "top_p": 1.0}
+
+# gpt-5.1 to gpt-5.4 are left out: their default reasoning effort is "none" and we have no report of
+# them rejecting sampling. ``-chat`` variants are not reasoning models.
+OPENAI_FIXED_SAMPLING: list[FixedSampling] = [
+    FixedSampling(r"o[134](?:-[a-z0-9-]+)?", False, (KHOJ_1377,)),
+    FixedSampling(r"gpt-5(?:-(?!chat)[a-z0-9-]+)?", False, (OPENLESS_888,)),
+    # gpt-5.5: OPENLESS_888; gpt-5.6-terra/sol/luna: KHOJ_1377 (400 at temperature 0.8 on gpt-5.6-luna).
+    FixedSampling(r"gpt-5\.[56](?:-(?!chat)[a-z0-9-]+)?", True, (OPENLESS_888, KHOJ_1377)),
+]
+
+# Gemini 3 models: Google "strongly recommend[s] keeping the temperature parameter at its default value
+# of 1.0"; lower values "may lead to unexpected behavior, such as looping or degraded performance"
+# (GEMINI_3_GUIDE, read 2026-10-19). Not an error, so the rule words it as a warning.
+GEMINI_3 = r"gemini-3(?:\.\d+)?-[a-z0-9.-]+"
+GEMINI_DEFAULT_TEMPERATURE = 1.0
+
+
+def openai_fixed_sampling(model: str | None) -> FixedSampling | None:
+    if not model:
+        return None
+    model = model.lower().removeprefix("openai/")
+    return next((m for m in OPENAI_FIXED_SAMPLING if re.fullmatch(m.pattern, model)), None)
+
+
+def is_gemini_3(model: str | None) -> bool:
+    if not model:
+        return False
+    model = model.lower()
+    for prefix in (*_VERTEX_PREFIXES, *_ROUTER_PREFIXES):
+        model = model.removeprefix(prefix)
+    # The guide is about text generation; image, speech and embedding models aren't covered.
+    if any(word in model for word in ("image", "tts", "embedding")):
+        return False
+    return re.fullmatch(GEMINI_3, model) is not None
 
 
 def traits(model: str | None) -> ModelTraits | None:

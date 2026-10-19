@@ -3,13 +3,13 @@ from pathlib import Path
 
 import pytest
 
-from llm_drift_lint.rules import ldl007_openai_shutdown_default
-from llm_drift_lint.rules.ldl007_openai_shutdown_default import OpenAIShutdownDefault as Rule
+from llm_drift_lint.rules import ldl007_retired_model_default
+from llm_drift_lint.rules.ldl007_retired_model_default import RetiredModelDefault as Rule
 
 
 @pytest.fixture(autouse=True)
 def fixed_today(monkeypatch):
-    monkeypatch.setattr(ldl007_openai_shutdown_default, "today", lambda: datetime.date(2026, 10, 18))
+    monkeypatch.setattr(ldl007_retired_model_default, "today", lambda: datetime.date(2026, 10, 18))
 
 
 def test_parameter_and_constant_defaults(lint):
@@ -98,6 +98,83 @@ def test_past_and_upcoming_shutdowns_are_worded_apart(lint):
 
 
 def test_shutdown_day_counts_as_past(lint, monkeypatch):
-    monkeypatch.setattr(ldl007_openai_shutdown_default, "today", lambda: datetime.date(2026, 10, 23))
+    monkeypatch.setattr(ldl007_retired_model_default, "today", lambda: datetime.date(2026, 10, 23))
     [finding] = lint(Rule, 'DEFAULT_MODEL = "gpt-4"\n')
     assert "shut it down on 2026-10-23" in finding.message and finding.severity == "error"
+
+
+def test_claude_retirements(lint):
+    findings = lint(
+        Rule,
+        """
+        DEFAULT_MODEL = "claude-3-5-sonnet-latest"
+        JUDGE_MODEL = "anthropic/claude-sonnet-4-20250514"
+
+        def ask(prompt, model="claude-sonnet-4-5-20250929"):
+            ...
+
+        CURRENT_MODEL = "claude-sonnet-4-6"
+        BEDROCK_MODEL = "anthropic.claude-3-5-sonnet-20240620-v1:0"
+        """,
+    )
+    assert [f.line for f in findings] == [2, 3, 5]
+    assert "Anthropic shut it down on 2025-10-28" in findings[0].message
+    assert "claude-sonnet-5-5" in findings[1].hint
+    assert "Anthropic shuts it down on 2026-11-30" in findings[2].message
+    assert [f.severity for f in findings] == ["error", "error", "warning"]
+    assert findings[2].references == ("https://platform.claude.com/docs/en/about-claude/model-deprecations",)
+
+
+def test_gemini_api_retirements(lint):
+    findings = lint(
+        Rule,
+        """
+        import os
+
+        GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+        IMAGE_MODEL = "models/imagen-4.0-generate-001"
+        FLASH_MODEL = "gemini-2.5-flash"
+        NEW_MODEL = "gemini-3.6-flash"
+        """,
+    )
+    assert [f.line for f in findings] == [4, 5]
+    assert "Google shut it down on 2026-06-01" in findings[0].message
+    assert "gemini-3.6-flash" in findings[0].hint
+    assert "gemini-nano-banana-2.1" in findings[1].hint
+
+
+def test_vertex_dates_apply_only_to_vertex_code(lint):
+    findings = lint(
+        Rule,
+        """
+        from google import genai
+
+        def vertex_client(model="gemini-2.5-flash"):
+            return genai.Client(vertexai=True, project=PROJECT)
+
+        def api_client(model="gemini-2.5-flash"):
+            return genai.Client(api_key=KEY)
+
+        LITELLM_MODEL = "vertex_ai/gemini-3.6-flash"
+        API_MODEL = "gemini/gemini-3.6-flash"
+        """,
+    )
+    assert [f.line for f in findings] == [4, 10]
+    assert "Vertex AI shuts it down on 2026-10-20" in findings[0].message
+    assert "Vertex AI shuts it down on 2026-11-19" in findings[1].message
+    assert "gemini-3.8-flash" in findings[1].hint
+    assert "vertex-ai" in findings[1].references[0]
+
+
+def test_vertex_sdk_import_marks_the_file(lint):
+    [finding] = lint(
+        Rule,
+        """
+        import vertexai
+        from vertexai.generative_models import GenerativeModel
+
+        MODEL_NAME = "gemini-2.5-pro"
+        GEMINI_IMAGE_MODEL = "gemini-2.0-flash"
+        """,
+    )
+    assert finding.line == 5 and "Vertex AI" in finding.message

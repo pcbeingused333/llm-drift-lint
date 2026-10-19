@@ -7,8 +7,10 @@ from . import (  # noqa: F401
     ldl004_forced_tool_choice,
     ldl005_thinking_budget_tokens,
     ldl006_low_max_tokens_thinking,
-    ldl007_openai_shutdown_default,
+    ldl007_retired_model_default,
     ldl008_sampling_gate,
     ldl009_thinking_gate,
     ldl010_stream_tool_call_index,
+    ldl011_stop_to_end_turn,
+    ldl012_openai_gemini_sampling,
 )
