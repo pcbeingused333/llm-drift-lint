@@ -3,6 +3,10 @@
 OpenAI's o-series and gpt-5 / gpt-5.5 / gpt-5.6 answer a non-default value with a 400 ("Only the
 default (1) value is supported"). Gemini 3 accepts a lower temperature but Google warns it can loop or
 degrade, so that case is worded as a warning.
+
+Evidence: for gpt-5.5 and gpt-5.6 the 400 comes from issue reports (khoj#1377, openless#888), not
+from OpenAI's documentation, which says nothing about sampling on those models. The Gemini 3 case comes
+from Google's Gemini 3 guide.
 """
 
 from __future__ import annotations

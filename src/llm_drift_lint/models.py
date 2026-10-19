@@ -400,6 +400,7 @@ OPENAI_SAMPLING_DEFAULTS: dict[str, float] = {"temperature": 1.0, "top_p": 1.0}
 OPENAI_FIXED_SAMPLING: list[FixedSampling] = [
     FixedSampling(r"o[134](?:-[a-z0-9-]+)?", False, (KHOJ_1377,)),
     FixedSampling(r"gpt-5(?:-(?!chat)[a-z0-9-]+)?", False, (OPENLESS_888,)),
+    # Evidence: issue reports only; OpenAI's docs don't cover sampling on these models.
     # gpt-5.5: OPENLESS_888; gpt-5.6-terra/sol/luna: KHOJ_1377 (400 at temperature 0.8 on gpt-5.6-luna).
     FixedSampling(r"gpt-5\.[56](?:-(?!chat)[a-z0-9-]+)?", True, (OPENLESS_888, KHOJ_1377)),
 ]
