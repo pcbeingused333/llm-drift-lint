@@ -74,6 +74,8 @@ def test_openai_shutdowns():
     assert models.openai_shutdown("ft:gpt-3.5-turbo-0125:acme::abc123").replacement == "gpt-5.6-terra"
     assert models.openai_shutdown("ft:davinci-002:acme::x").date == "2026-10-23"
     assert models.openai_shutdown("gpt-4o-2024-08-06").date == "2027-01-14"
+    assert models.openai_shutdown("gpt-5-mini").date == "2026-12-11"
+    assert models.openai_shutdown("o3").replacement == "gpt-5.6-sol"
     for alive in ("gpt-4o", "gpt-4.1", "gpt-4o-mini", "gpt-5.6-sol", "davinci-002", None):
         assert models.openai_shutdown(alive) is None
 

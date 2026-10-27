@@ -13,7 +13,7 @@ LLM providers change what their models accept faster than client code changes. E
 
 The linter reads your Python source, finds the SDK calls, resolves the model id when it's a literal or a constant, and checks the call against what that model accepts.
 
-> Status: v0.1 targets the Anthropic Python SDK (direct, Bedrock and Vertex model ids). The unreleased rules LDL007–LDL012 extend it to OpenAI and Gemini: retired default models, OpenAI-compatible stream reducers, OpenAI→Anthropic gateways and OpenAI/Gemini sampling parameters.
+> Status: v0.2. LDL001–LDL006 target the Anthropic Python SDK (direct, Bedrock and Vertex model ids); LDL007–LDL012 extend it to OpenAI and Gemini: retired default models, OpenAI-compatible stream reducers, OpenAI→Anthropic gateways and OpenAI/Gemini sampling parameters.
 
 ## Rules
 
@@ -38,7 +38,7 @@ The linter reads your Python source, finds the SDK calls, resolves the model id 
 
 ## Does it work?
 
-`tests/corpus/` holds the real files from the upstream fixes above, as they were just before and just after each fix, plus the findings a correct linter must report. The test suite checks all of them. On 16 large open-source code bases (langchain, llama_index, crewAI, dspy, agno, langgraph, semantic-kernel, autogen and others) v0.1 reports exactly two findings. Both are real bugs: `AnthropicLLM` in `langchain-anthropic` returns `response.content[0].text` and breaks on models that think by default (reported as [langchain-ai/langchain#41263](https://github.com/langchain-ai/langchain/issues/41263)).
+`tests/corpus/` holds the real files from the upstream fixes above, as they were just before and just after each fix, plus the findings a correct linter must report. The test suite checks all of them. On 16 large open-source code bases (langchain, llama_index, crewAI, dspy, agno, langgraph, semantic-kernel, autogen and others) the six v0.1 rules report exactly two findings. Both are real bugs: `AnthropicLLM` in `langchain-anthropic` returns `response.content[0].text` and breaks on models that think by default (reported as [langchain-ai/langchain#41263](https://github.com/langchain-ai/langchain/issues/41263)).
 
 ## Install
 
@@ -80,7 +80,7 @@ or put `# ldl: ignore[LDL001]` alone on the line above. A bare `# ldl: ignore` s
 
 ```yaml
 - repo: https://github.com/pcbeingused333/llm-drift-lint
-  rev: v0.1.0
+  rev: v0.2.0
   hooks:
     - id: llm-drift-lint
 ```

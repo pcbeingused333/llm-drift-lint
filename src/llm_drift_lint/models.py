@@ -177,7 +177,7 @@ def _shutdowns(
 
 _TERRA, _SOL, _LUNA = "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna"
 
-# OpenAI model ids and the date the API stops serving them (OPENAI_DEPRECATIONS, checked 2026-10-18).
+# OpenAI model ids and the date the API stops serving them (OPENAI_DEPRECATIONS, checked 2026-10-26).
 # Keys are exact ids: an alias is listed only when the notice names it, so the 2027-01-14 notice
 # contributes snapshots only (it doesn't say what the gpt-4o / gpt-4.1 aliases point to afterwards).
 OPENAI_SHUTDOWNS: dict[str, Shutdown] = {
@@ -203,6 +203,18 @@ OPENAI_SHUTDOWNS: dict[str, Shutdown] = {
             "o4-mini": _TERRA,
             "o4-mini-2025-04-16": _TERRA,
             "gpt-image-1": "gpt-image-2.5-sunburst or gpt-image-2.5-flare",
+        },
+    ),
+    # Listed on the deprecations page (checked 2026-10-26).
+    **_shutdowns(
+        "2026-12-11",
+        {
+            "gpt-5": _SOL,
+            "gpt-5-mini": _TERRA,
+            "gpt-5-nano": _LUNA,
+            "gpt-5-pro": 'gpt-5.6-sol with reasoning {"mode": "pro"}',
+            "o3": _SOL,
+            "o3-pro": 'gpt-5.6-sol with reasoning {"mode": "pro"}',
         },
     ),
     # Announced 2026-10-14.

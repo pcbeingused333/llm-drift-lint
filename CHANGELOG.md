@@ -1,7 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (2026-10-27)
 
+- `Finding.severity`: an upcoming retirement or the Gemini 3 temperature is a warning; a model already past its date is an error.
+- LDL007 also knows OpenAI's 2026-12-11 shutdown of gpt-5, gpt-5-mini, gpt-5-nano, gpt-5-pro, o3 and o3-pro.
 - LDL007 `retired-model-default` (was `openai-shutdown-default`): also covers Claude API retirements (Sonnet 4.5 on 2026-11-30, and everything already retired), Gemini API shutdowns (gemini-2.0-flash, imagen-4.0-*-001, gemini-2.5-flash-image) and Vertex AI's own Gemini schedule (gemini-2.5-* on 2026-10-20, gemini-3.6-flash on 2026-11-19), which applies only to code that targets Vertex. Messages name the provider and link the page the date comes from.
 - LDL008 `incomplete-sampling-gate`, LDL009 `incomplete-thinking-gate`, LDL010 `stream-tool-call-index` (see the README).
 - LDL011 `stop-to-end-turn`: OpenAI→Anthropic converters that map `"stop"` to `"end_turn"` with no tool-call check.
